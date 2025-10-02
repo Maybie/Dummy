@@ -1255,7 +1255,7 @@ function Compkiller:_CreateBlock(Signal)
 	BlockText.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	BlockText.BorderSizePixel = 0
 	BlockText.Position = UDim2.new(0, 12, 0.5, 0)
-	BlockText.Size = UDim2.new(1, -125, 0, 25)
+	BlockText.Size = UDim2.new(1, -20, 0, 25)
 	BlockText.ZIndex = 10
 	BlockText.Font = Enum.Font.GothamMedium
 	BlockText.Text = "Block"
@@ -3148,7 +3148,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		BlockText.BorderColor3 = Color3.fromRGB(0, 0, 0)
 		BlockText.BorderSizePixel = 0
 		BlockText.Position = UDim2.new(0, 12, 0, 1)
-		BlockText.Size = UDim2.new(0.5, -10, 1, 0)
+		BlockText.Size = UDim2.new(1, -20, 0, 25)
 		BlockText.ZIndex = Zindex + 2
 		BlockText.Font = Enum.Font.GothamMedium
 		BlockText.Text = Config.Name
@@ -3543,29 +3543,23 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		local Base = 15;
 
 		local UpdateScale = function()
+
 			if not DescriptionText.Text:byte() then
 				local TitleScale = TextService:GetTextSize(BlockText.Text,BlockText.TextSize,BlockText.Font,Vector2.new(math.huge,math.huge));
+
 				Compkiller:_Animation(Paragraph,TweenInfo.new(0.15),{
 					Size = UDim2.new(1, -1, 0, TitleScale.Y + Base)
 				});
 			else
 				local TitleScale = TextService:GetTextSize(BlockText.Text,BlockText.TextSize,BlockText.Font,Vector2.new(math.huge,math.huge));
-				local ContentScale = TextService:GetTextSize(DescriptionText.Text,DescriptionText.TextSize,DescriptionText.Font,Vector2.new(DescriptionText.AbsoluteSize.X, math.huge));
+				local ContentScale = TextService:GetTextSize(DescriptionText.Text,DescriptionText.TextSize,DescriptionText.Font,Vector2.new(math.huge,math.huge));
+
 				Compkiller:_Animation(Paragraph,TweenInfo.new(0.15),{
 					Size = UDim2.new(1, -1, 0, (TitleScale.Y + ContentScale.Y) + Base)
 				});
 			end;
-
-			task.wait(0.16)
-			local Section = Paragraph.Parent
-			local UIListLayout = Section:FindFirstChildWhichIsA("UIListLayout")
-			if UIListLayout then
-				Compkiller:_Animation(Section,TweenInfo.new(0.1),{
-					Size = UDim2.new(1, 0, 0, UIListLayout.AbsoluteContentSize.Y)
-				})
-			end
 		end;
-		
+
 		UpdateScale();
 
 		local Args = {};
@@ -3643,7 +3637,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		BlockText.BorderColor3 = Color3.fromRGB(0, 0, 0)
 		BlockText.BorderSizePixel = 0
 		BlockText.Position = UDim2.new(0, 12, 0.5, 0)
-		BlockText.Size = UDim2.new(1, -125, 0, 25)
+		BlockText.Size = UDim2.new(1, -20, 0, 25)
 		BlockText.ZIndex = Zindex + 2
 		BlockText.Font = Enum.Font.GothamMedium
 		BlockText.Text = Config.Name
@@ -5274,57 +5268,6 @@ function Compkiller.new(Config : Window)
 				end;
 			end);
 
-			do
-			
-			local resizeHandle = Instance.new("ImageButton")
-			resizeHandle.Name = "ResizeHandle"
-			resizeHandle.Parent = MainFrame
-			resizeHandle.BackgroundTransparency = 1
-			resizeHandle.ZIndex = MainFrame.ZIndex + 100
-			resizeHandle.AnchorPoint = Vector2.new(1, 1)
-			resizeHandle.Position = UDim2.new(1, 0, 1, 0)
-			resizeHandle.Size = UDim2.new(0, 15, 0, 15)
-			resizeHandle.Image = "rbxassetid://5012394513"
-			resizeHandle.ImageColor3 = Compkiller.Colors.LineColor
-			resizeHandle.ImageTransparency = 0.5
-			resizeHandle.Rotation = -90
-
-			table.insert(Compkiller.Elements.LineColor,{
-				Element = resizeHandle,
-				Property = "ImageColor3"
-			});
-
-			local isResizing = false
-			local startMousePos
-			local startWindowSize
-
-			resizeHandle.InputBegan:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-					isResizing = true
-					startMousePos = Vector2.new(Mouse.X, Mouse.Y)
-					startWindowSize = MainFrame.AbsoluteSize
-					input.Changed:Connect(function()
-						if input.UserInputState == Enum.UserInputState.End then
-							isResizing = false
-						end
-					end)
-				end
-			end)
-
-			UserInputService.InputChanged:Connect(function(input)
-				if isResizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-					local currentMousePos = Vector2.new(Mouse.X, Mouse.Y)
-					local delta = currentMousePos - startMousePos
-					local newSize = startWindowSize + delta
-
-					local minSize = Vector2.new(400, 350)
-					newSize = Vector2.new(math.max(newSize.X, minSize.X), math.max(newSize.Y, minSize.Y))
-
-					MainFrame.Size = UDim2.fromOffset(newSize.X, newSize.Y)
-				end
-			end)
-		end
-
 			return WindowArgs:DrawTab(TabConfig , {
 				ID = Id,
 				Highlight = Highlight,
@@ -6563,15 +6506,14 @@ function Compkiller.new(Config : Window)
 			Left.ScrollBarThickness = 0
 			Left.TopImage = ""
 
-			Left.ScrollingEnabled = true
 			UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				Left.CanvasSize = UDim2.fromOffset(0, UIListLayout.AbsoluteContentSize.Y)
+				Left.CanvasSize = UDim2.fromOffset(0,UIListLayout.AbsoluteContentSize.Y)
 			end)
 
 			UIListLayout.Parent = Left
 			UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 			UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-			UIListLayout_2.VerticalFlex = Enum.UIFlexAlignment.None
+			UIListLayout.VerticalFlex = Enum.UIFlexAlignment.Fill
 			UIListLayout.Padding = UDim.new(0, 10)
 
 			Right.Name = "Right"
@@ -6594,9 +6536,8 @@ function Compkiller.new(Config : Window)
 			Upvalue.Left = Left;
 			Upvalue.Right = Right;
 
-			Right.ScrollingEnabled = true
 			UIListLayout_2:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				Right.CanvasSize = UDim2.fromOffset(0, UIListLayout_2.AbsoluteContentSize.Y)
+				Right.CanvasSize = UDim2.fromOffset(0,UIListLayout_2.AbsoluteContentSize.Y)
 			end)
 
 			UIListLayout_2.Parent = Right
@@ -6604,6 +6545,11 @@ function Compkiller.new(Config : Window)
 			UIListLayout_2.SortOrder = Enum.SortOrder.LayoutOrder
 			UIListLayout_2.Padding = UDim.new(0, 10)
 			UIListLayout_2.VerticalFlex = Enum.UIFlexAlignment.Fill
+
+			if Compkiller:_IsMobile() or TabConfig.EnableScrolling then
+				WindowArgs:AddUnbind(UIListLayout_2 , Right);
+				WindowArgs:AddUnbind(UIListLayout , Left);
+			end;
 
 			if TabConfig.Type == "Single" then
 				Right.Visible = false;
@@ -6749,7 +6695,7 @@ function Compkiller.new(Config : Window)
 			UIListLayout.Parent = Left
 			UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 			UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-			UIListLayout_2.VerticalFlex = Enum.UIFlexAlignment.None
+			UIListLayout.VerticalFlex = Enum.UIFlexAlignment.Fill
 			UIListLayout.Padding = UDim.new(0, 10)
 
 			Right.Name = "Right"
@@ -6782,8 +6728,10 @@ function Compkiller.new(Config : Window)
 			UIListLayout_2.Padding = UDim.new(0, 10)
 			UIListLayout_2.VerticalFlex = Enum.UIFlexAlignment.Fill
 
-			WindowArgs:AddUnbind(UIListLayout_2 , Right);
-			WindowArgs:AddUnbind(UIListLayout , Left);
+			if Compkiller:_IsMobile() or TabConfig.EnableScrolling then
+				WindowArgs:AddUnbind(UIListLayout_2 , Right);
+				WindowArgs:AddUnbind(UIListLayout , Left);
+			end;
 
 			if Compkiller:_IsMobile() then
 				Compkiller:_AddDragBlacklist(Left);
@@ -6987,8 +6935,6 @@ function Compkiller.new(Config : Window)
 			Section.BorderSizePixel = 0
 			Section.Size = UDim2.new(1, 0, 0, 0)
 			Section.ZIndex = 9
-
-			Section.ClipsDescendants = true
 
 			UICorner.CornerRadius = UDim.new(0, 6)
 			UICorner.Parent = Section
@@ -7564,106 +7510,6 @@ function Compkiller.new(Config : Window)
 			end
 		end);
 	end);
-
-	do
-    local resizeHandle = Instance.new("ImageButton")
-    resizeHandle.Name = "ResizeHandle"
-    resizeHandle.Parent = MainFrame
-    resizeHandle.BackgroundTransparency = 1
-    resizeHandle.ZIndex = MainFrame.ZIndex + 100
-    resizeHandle.AnchorPoint = Vector2.new(1, 1)
-    resizeHandle.Position = UDim2.new(1, 0, 1, 0)
-    resizeHandle.Size = UDim2.new(0, 15, 0, 15)
-    resizeHandle.Image = "rbxassetid://5012394513"
-    resizeHandle.ImageColor3 = Compkiller.Colors.LineColor
-    resizeHandle.ImageTransparency = 0.5
-    resizeHandle.Rotation = -90
-
-    table.insert(Compkiller.Elements.LineColor,{
-        Element = resizeHandle,
-        Property = "ImageColor3"
-    });
-
-    local isResizing = false
-    local startMousePos
-    local startWindowSize
-
-    resizeHandle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isResizing = true
-            startMousePos = Vector2.new(Mouse.X, Mouse.Y)
-            startWindowSize = MainFrame.AbsoluteSize
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    isResizing = false
-                end
-            end)
-        end
-    end)
-
-		UserInputService.InputChanged:Connect(function(input)
-			if isResizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-				local currentMousePos = Vector2.new(Mouse.X, Mouse.Y)
-				local delta = currentMousePos - startMousePos
-				local newSize = startWindowSize + delta
-
-				local minSize = Vector2.new(400, 350)
-				newSize = Vector2.new(math.max(newSize.X, minSize.X), math.max(newSize.Y, minSize.Y))
-
-				MainFrame.Size = UDim2.fromOffset(newSize.X, newSize.Y)
-			end
-		end)
-	end
-
-	do
-		local resizeHandle = Instance.new("ImageButton")
-		resizeHandle.Name = "ResizeHandle"
-		resizeHandle.Parent = MainFrame
-		resizeHandle.BackgroundTransparency = 1
-		resizeHandle.ZIndex = MainFrame.ZIndex + 100
-		resizeHandle.AnchorPoint = Vector2.new(1, 1)
-		resizeHandle.Position = UDim2.new(1, 0, 1, 0)
-		resizeHandle.Size = UDim2.new(0, 15, 0, 15)
-		resizeHandle.Image = "rbxassetid://5012394513"
-		resizeHandle.ImageColor3 = Compkiller.Colors.LineColor
-		resizeHandle.ImageTransparency = 0.5
-		resizeHandle.Rotation = -90
-
-		table.insert(Compkiller.Elements.LineColor,{
-			Element = resizeHandle,
-			Property = "ImageColor3"
-		});
-
-		local isResizing = false
-		local startMousePos
-		local startWindowSize
-
-		resizeHandle.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				isResizing = true
-				startMousePos = Vector2.new(Mouse.X, Mouse.Y)
-				startWindowSize = MainFrame.AbsoluteSize
-				input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then
-						isResizing = false
-					end
-				end)
-			end
-		end)
-
-		UserInputService.InputChanged:Connect(function(input)
-			if isResizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-				local currentMousePos = Vector2.new(Mouse.X, Mouse.Y)
-				local delta = currentMousePos - startMousePos
-				local newSize = startWindowSize + delta
-
-				local minSize = Vector2.new(400, 350)
-				newSize = Vector2.new(math.max(newSize.X, minSize.X), math.max(newSize.Y, minSize.Y))
-
-				MainFrame.Size = UDim2.fromOffset(newSize.X, newSize.Y)
-			end
-		end)
-	end
 
 	return WindowArgs;
 end;
