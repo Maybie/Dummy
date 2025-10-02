@@ -3543,9 +3543,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		local Base = 15;
 
 		local UpdateScale = function()
-			local Section = Paragraph.Parent.Parent
-			local UIListLayout = Paragraph.Parent
-
 			if not DescriptionText.Text:byte() then
 				local TitleScale = TextService:GetTextSize(BlockText.Text,BlockText.TextSize,BlockText.Font,Vector2.new(math.huge,math.huge));
 				Compkiller:_Animation(Paragraph,TweenInfo.new(0.15),{
@@ -3560,11 +3557,15 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			end;
 
 			task.wait(0.16)
-			Compkiller:_Animation(Section,TweenInfo.new(0.1),{
-				Size = UDim2.new(1, 0, 0, UIListLayout.AbsoluteContentSize.Y)
-			})
+			local Section = Paragraph.Parent
+			local UIListLayout = Section:FindFirstChildWhichIsA("UIListLayout")
+			if UIListLayout then
+				Compkiller:_Animation(Section,TweenInfo.new(0.1),{
+					Size = UDim2.new(1, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+				})
+			end
 		end;
-
+		
 		UpdateScale();
 
 		local Args = {};
