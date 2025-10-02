@@ -1238,33 +1238,8 @@ function Compkiller:_CreateBlock(Signal)
 	local GlobalBlock = Instance.new("Frame")
 	local BlockText = Instance.new("TextLabel")
 	local LinkValues = Instance.new("Frame")
-	local UIListLayout = Instance.new("UIListLayout")
-	local BlockLine = Instance.new("Frame")
-
-	GlobalBlock.Name = "GlobalBlock"
-	GlobalBlock.BackgroundTransparency = 1.000
-	GlobalBlock.BorderColor3 = Color3.fromRGB(0, 0, 0)
-	GlobalBlock.BorderSizePixel = 0
-	GlobalBlock.Size = UDim2.new(1, -1, 0, 30)
-	GlobalBlock.ZIndex = 10
-
-	BlockText.Name = "BlockText"
-	BlockText.Parent = GlobalBlock
-	BlockText.AnchorPoint = Vector2.new(0, 0.5)
-	BlockText.BackgroundTransparency = 1.000
-	BlockText.BorderColor3 = Color3.fromRGB(0, 0, 0)
-	BlockText.BorderSizePixel = 0
-	BlockText.Position = UDim2.new(0, 12, 0.5, 0)
-	BlockText.Size = UDim2.new(1, -20, 0, 25)
-	BlockText.ZIndex = 10
-	BlockText.Font = Enum.Font.GothamMedium
-	BlockText.Text = "Block"
-	BlockText.TextColor3 = Compkiller.Colors.SwitchColor
-	BlockText.TextSize = 14.000
-	BlockText.TextTransparency = 0.300
-	BlockText.TextXAlignment = Enum.TextXAlignment.Left
-	
-	table.insert(Compkiller.Elements.SwitchColor , {
+	local 
+Padding = UDim.new(0, 8)
 		Element = BlockText,
 		Property = 'TextColor3'
 	});
@@ -2255,34 +2230,8 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		local UIStroke = Instance.new("UIStroke")
 		local UICorner = Instance.new("UICorner")
 		local Elements = Instance.new("Frame")
-		local UIListLayout = Instance.new("UIListLayout")
-		local Toggl = false;
-
-		local ToggleUI = function(bool)
-			local IsSameValue = bool == Toggl;
-
-			Toggl = bool;
-
-			local MainPosition = UDim2.fromOffset(Element.AbsolutePosition.X,Element.AbsolutePosition.Y + 80);
-			local DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset + 15);
-			local MUL = Window.AbsoluteSize.Y / 2;
-
-			if MainPosition.Y.Offset > MUL then -- go up
-				MainPosition = UDim2.fromOffset(Element.AbsolutePosition.X,Element.AbsolutePosition.Y + 45);
-				DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset - 25);
-				ExtractElement.AnchorPoint = Vector2.new(0,1)
-			else
-				ExtractElement.AnchorPoint = Vector2.new(0,0)
-			end;
-
-			if bool then
-				Signal:Fire(true);
-
-				if not IsSameValue then
-					ExtractElement.Position = DropPosition
-				end;
-
-				Compkiller:_Animation(ExtractElement , Tween , {
+		local 
+Padding = UDim.new(0, 8)
 					Position = MainPosition,
 					BackgroundTransparency = 0,
 					Size = UDim2.new(0, 225, 0, UIListLayout.AbsoluteContentSize.Y)
@@ -2298,38 +2247,15 @@ function Compkiller:_LoadOption(Value , TabSignal)
 				Compkiller:_Animation(ExtractElement , Tween , {
 					Position = DropPosition,
 					BackgroundTransparency = 1,
-					Size = UDim2.new(0, 225, 0, UIListLayout.AbsoluteContentSize.Y - 10)
-				});
-
-				Compkiller:_Animation(UIStroke , Tween , {
+					Size = UDim2.new(0, 225, 0, 
+Padding = UDim.new(0, 8)
 					Transparency = 1
 				});
 			end;
 		end;
 
-		UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			Element.Visible = UIListLayout.AbsoluteContentSize.Y > 0
-		end)
-
-		Compkiller:_AddPropertyEvent(ExtractElement,function(bool)
-			ExtractElement.Visible = bool;
-		end);
-
-		Compkiller:_AddDragBlacklist(ExtractElement);
-
-		ExtractElement.Name = "ExtractElement"
-		ExtractElement.Parent = Window
-		ExtractElement.BackgroundColor3 = Compkiller.Colors.BlockBackground
-		ExtractElement.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		ExtractElement.BorderSizePixel = 0
-		ExtractElement.ClipsDescendants = true
-		ExtractElement.Position = UDim2.new(123, 0, 123, 0)
-		ExtractElement.Size = UDim2.new(0, 225, 0, 35)
-		ExtractElement.ZIndex = BaseZ_Index
-		ExtractElement.Visible = false
-		ExtractElement.ClipsDescendants = true
-		
-		table.insert(Compkiller.Elements.BlockBackground,{
+		
+Padding = UDim.new(0, 8)
 			Element = ExtractElement,
 			Property = "BackgroundColor3"
 		});
@@ -2388,21 +2314,8 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	local DropdownWindow = Instance.new("Frame")
 	local UIStroke = Instance.new("UIStroke")
 	local UICorner = Instance.new("UICorner")
-	local ScrollingFrame = Instance.new("ScrollingFrame")
-	local UIListLayout = Instance.new("UIListLayout")
-	local ToggleDb = Compkiller.__SIGNAL(false);
-	local EventOut = Compkiller.__SIGNAL(0);
-
-	DropdownWindow.Name = "DropdownWindow"
-	DropdownWindow.Parent = Window
-	DropdownWindow.BackgroundColor3 = Compkiller.Colors.BlockBackground
-	DropdownWindow.BorderColor3 = Color3.fromRGB(0, 0, 0)
-	DropdownWindow.BorderSizePixel = 0
-	DropdownWindow.Position = UDim2.new(123, 0, 123, 0)
-	DropdownWindow.Size = UDim2.new(0, 190, 0, 200)
-	DropdownWindow.ZIndex = BaseZ_Index
-	
-	table.insert(Compkiller.Elements.BlockBackground,{
+	local 
+ScrollingEnabled = true
 		Element = DropdownWindow,
 		Property = "BackgroundColor3"
 	});
@@ -2423,70 +2336,20 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	UICorner.CornerRadius = UDim.new(0, 6)
 	UICorner.Parent = DropdownWindow
 
-	ScrollingFrame.Parent = DropdownWindow
-	ScrollingFrame.Active = true
-	ScrollingFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-	ScrollingFrame.BackgroundTransparency = 1.000
-	ScrollingFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
-	ScrollingFrame.BorderSizePixel = 0
-	ScrollingFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-	ScrollingFrame.Size = UDim2.new(1, -5, 1, -5)
-	ScrollingFrame.ZIndex = BaseZ_Index + 5
-	ScrollingFrame.BottomImage = ""
-	ScrollingFrame.ScrollBarThickness = 0
-	ScrollingFrame.TopImage = ""
-
-	UIListLayout.Parent = ScrollingFrame
-	UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	UIListLayout.Padding = UDim.new(0, 10)
-
-	UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-		ScrollingFrame.CanvasSize = UDim2.fromOffset(UIListLayout.AbsoluteContentSize.X,UIListLayout.AbsoluteContentSize.Y)
-	end);
-
-	local ToggleUI = function(bool)
-		local IsSame = ToggleDb:GetValue() == bool;
-
-		EventOut:Fire(bool);
-		ToggleDb:Fire(bool);
-
-		local MUL = Window.AbsoluteSize.Y / 2;
-
-		local MainPosition = UDim2.fromOffset(BaseParent.AbsolutePosition.X + 1,BaseParent.AbsolutePosition.Y + 80);
-		local DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset + 25);
-
-		if MainPosition.Y.Offset > MUL then -- go up
-			MainPosition = UDim2.fromOffset(BaseParent.AbsolutePosition.X + 1,BaseParent.AbsolutePosition.Y + 55);
-			DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset - 25);
-
-			DropdownWindow.AnchorPoint = Vector2.new(0,1);
-		else
-			DropdownWindow.AnchorPoint = Vector2.zero;
-		end;
-
-		if bool then
-			if not IsSame then
-				DropdownWindow.Position = DropPosition;
-			end;
-
-			Compkiller:_Animation(DropdownWindow,TweenInfo.new(0.2),{
+	
+ScrollingEnabled = true
 				BackgroundTransparency = 0,
 				Position = MainPosition,
-				Size = UDim2.new(0, BaseParent.AbsoluteSize.X - 1, 0, math.clamp(UIListLayout.AbsoluteContentSize.Y + 10,10 , 200))
-			})
-
-			Compkiller:_Animation(UIStroke,TweenInfo.new(0.2),{
+				Size = UDim2.new(0, BaseParent.AbsoluteSize.X - 1, 0, math.clamp(
+Padding = UDim.new(0, 8)
 				Transparency = 0
 			})
 		else
 			Compkiller:_Animation(DropdownWindow,TweenInfo.new(0.2),{
 				BackgroundTransparency = 1,
 				Position = DropPosition,
-				Size = UDim2.new(0, BaseParent.AbsoluteSize.X - 1, 0, math.clamp(UIListLayout.AbsoluteContentSize.Y / 1.5, 10 , 200))
-			})
-
-			Compkiller:_Animation(UIStroke,TweenInfo.new(0.2),{
+				Size = UDim2.new(0, BaseParent.AbsoluteSize.X - 1, 0, math.clamp(
+Padding = UDim.new(0, 8)
 				Transparency = 1
 			})
 		end;
@@ -2557,30 +2420,8 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	end;
 
 	local ClearDropdown = function()
-		for i,v in next , ScrollingFrame:GetChildren() do
-			if v:IsA('Frame') then
-				v:Destroy();
-			end;
-		end;
-
-		for i,v in next,  __signals do
-			v:Disconnect();
-		end;
-	end;
-
-	local IsDefault = function(v)
-		return (typeof(Default) == 'table' and (Default[v] or table.find(Default,v))) or Default == v;
-	end;
-
-	local MatchDefault = function(v,DataFrame)
-		return (typeof(DataFrame) == 'table' and (DataFrame[v] or table.find(DataFrame,v))) or DataFrame == v;
-	end;
-
-	local UpdateDropdown = function()
-		local DataFrame;
-
-		if IsMulti then
-			DataFrame = {};
+		for i,v in next , 
+ScrollingEnabled = true};
 		end;
 
 		for i,v in next , Values do
@@ -2588,13 +2429,8 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 
 			bth.BlockText.Text = tostring(v);
 
-			bth.DropdownItem.Parent = ScrollingFrame;
-
-			bth.Value = v;
-
-			table.insert(__signals , ToggleDb:Connect(function(bool)
-				if bool then
-					Compkiller:_Animation(bth.BlockText,TweenInfo.new(0.2),{
+			bth.DropdownItem.Parent = 
+ScrollingEnabled = true
 						TextTransparency = ((IsDefault(v) or MatchDefault(v,DataFrame)) and 0) or 0.5
 					});
 
@@ -3558,9 +3394,8 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 
 			task.wait(0.16)
 			local Section = Paragraph.Parent
-			local UIListLayout = Section:FindFirstChildWhichIsA("UIListLayout")
-			if UIListLayout then
-				Compkiller:_Animation(Section,TweenInfo.new(0.1),{
+			local 
+Padding = UDim.new(0, 8)
 					Size = UDim2.new(1, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 				})
 			end
@@ -3879,41 +3714,8 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		local BlockText = Instance.new("TextLabel")
 		local BlockLine = Instance.new("Frame")
 		local LinkValues = Instance.new("Frame")
-		local UIListLayout = Instance.new("UIListLayout")
-		local ValueItems = Instance.new("Frame")
-		local UIStroke = Instance.new("UIStroke")
-		local UICorner = Instance.new("UICorner")
-		local ValueText = Instance.new("TextLabel")
-		local MainButton = Instance.new("ImageButton")
-
-		Dropdown.Name = "Dropdown"
-		Dropdown.Parent = Parent
-		Dropdown.BackgroundTransparency = 1.000
-		Dropdown.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		Dropdown.BorderSizePixel = 0
-		Dropdown.Size = UDim2.new(1, -1, 0, 55)
-		Dropdown.ZIndex = Zindex + 2
-
-		BlockText.Name = "BlockText"
-		BlockText.Parent = Dropdown
-		BlockText.BackgroundTransparency = 1.000
-		BlockText.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		BlockText.BorderSizePixel = 0
-		BlockText.Position = UDim2.new(0, 12, 0, 1)
-		BlockText.Size = UDim2.new(1, -20, 0, 25)
-		BlockText.ZIndex = Zindex + 3
-		BlockText.Font = Enum.Font.GothamMedium
-		BlockText.Text = Config.Name
-		BlockText.TextColor3 = Compkiller.Colors.SwitchColor
-		BlockText.TextSize = 14.000
-		BlockText.TextTransparency = 0.100
-		BlockText.TextXAlignment = Enum.TextXAlignment.Left
-
-		if not BlockText.Text:byte() then
-			Dropdown.Size = UDim2.new(1, -1, 0, 25)
-		end;
-		
-		table.insert(Compkiller.Elements.SwitchColor , {
+		local 
+Padding = UDim.new(0, 8)
 			Element = BlockText,
 			Property = 'TextColor3'
 		});
@@ -4395,34 +4197,8 @@ function Compkiller.new(Config : Window)
 	local TabButtons = Instance.new("Frame")
 	local SelectionFrame = Instance.new("Frame")
 	local UICorner_3 = Instance.new("UICorner")
-	local TabButtonScrollingFrame = Instance.new("ScrollingFrame")
-	local UIListLayout = Instance.new("UIListLayout")
-	local Userinfo = Instance.new("Frame")
-	local UserProfile = Instance.new("ImageLabel")
-	local UICorner_4 = Instance.new("UICorner")
-	local UserText = Instance.new("TextLabel")
-	local ExpireText = Instance.new("TextLabel")
-	local TabMainFrame = Instance.new("Frame")
-
-	UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-		TabButtonScrollingFrame.CanvasSize = UDim2.fromOffset(0,UIListLayout.AbsoluteContentSize.Y)
-	end);
-
-	CompKiller.Name = "u?name=compkiller_"..Compkiller:_RandomString();
-	CompKiller.Parent = CoreGui;
-	CompKiller.ResetOnSpawn = false
-	CompKiller.IgnoreGuiInset = true;
-	CompKiller.ZIndexBehavior = Enum.ZIndexBehavior.Global;
-
-	table.insert(Compkiller.Windows , CompKiller);
-
-	MainFrame.Active = true;
-	MainFrame.Name = "MainFrame"
-	MainFrame.Parent = CompKiller
-	MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-	MainFrame.BackgroundColor3 = Compkiller.Colors.BGDBColor
-
-	table.insert(Compkiller.Elements.BGDBColor,{
+	local TabButton
+ScrollingEnabled = true
 		Element = MainFrame,
 		Property = 'BackgroundColor3'
 	});
@@ -4541,61 +4317,8 @@ function Compkiller.new(Config : Window)
 	UICorner_3.CornerRadius = UDim.new(1, 0)
 	UICorner_3.Parent = SelectionFrame
 
-	TabButtonScrollingFrame.Name = "TabButtonScrollingFrame"
-	TabButtonScrollingFrame.Parent = TabButtons
-	TabButtonScrollingFrame.Active = true
-	TabButtonScrollingFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-	TabButtonScrollingFrame.BackgroundTransparency = 1.000
-	TabButtonScrollingFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
-	TabButtonScrollingFrame.BorderSizePixel = 0
-	TabButtonScrollingFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-	TabButtonScrollingFrame.Size = UDim2.new(1, -5, 1, -5)
-	TabButtonScrollingFrame.BottomImage = ""
-	TabButtonScrollingFrame.ScrollBarThickness = 0
-	TabButtonScrollingFrame.TopImage = ""
-
-	UIListLayout.Parent = TabButtonScrollingFrame
-	UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	UIListLayout.Padding = UDim.new(0, 4)
-
-	Userinfo.Name = "Userinfo"
-	Userinfo.Parent = TabFrame
-	Userinfo.AnchorPoint = Vector2.new(0, 1)
-	Userinfo.BackgroundTransparency = 1.000
-	Userinfo.BorderColor3 = Color3.fromRGB(0, 0, 0)
-	Userinfo.BorderSizePixel = 0
-	Userinfo.Position = UDim2.new(0, 0, 1, 0)
-	Userinfo.Size = UDim2.new(1, -25, 0, 60)
-
-	UserProfile.Name = "UserProfile"
-	UserProfile.Parent = Userinfo
-	UserProfile.BackgroundTransparency = 1.000
-	UserProfile.BorderColor3 = Color3.fromRGB(0, 0, 0)
-	UserProfile.BorderSizePixel = 0
-	UserProfile.Position = UDim2.new(0, 13, 0, 9)
-	UserProfile.Size = UDim2.new(0, 35, 0, 35)
-	UserProfile.ZIndex = 2
-	UserProfile.Image = "rbxassetid://18518299306"
-
-	UICorner_4.CornerRadius = UDim.new(1, 0)
-	UICorner_4.Parent = UserProfile
-
-	UserText.Name = "UserText"
-	UserText.Parent = Userinfo
-	UserText.BackgroundTransparency = 1.000
-	UserText.BorderColor3 = Color3.fromRGB(0, 0, 0)
-	UserText.BorderSizePixel = 0
-	UserText.Position = UDim2.new(0, 55, 0, 8)
-	UserText.Size = UDim2.new(0, 200, 0, 20)
-	UserText.ZIndex = 2
-	UserText.Font = Enum.Font.GothamMedium
-	UserText.Text = "Username"
-	UserText.TextColor3 = Compkiller.Colors.SwitchColor
-	UserText.TextSize = 13.000
-	UserText.TextXAlignment = Enum.TextXAlignment.Left
-	
-	table.insert(Compkiller.Elements.SwitchColor , {
+	TabButton
+ScrollingEnabled = true
 		Element = UserText,
 		Property = 'TextColor3'
 	});
@@ -4637,7 +4360,8 @@ function Compkiller.new(Config : Window)
 				Size = Config.Scale
 			})
 
-			Compkiller:_Animation(TabButtonScrollingFrame,TweenInfo.new(0.35),{
+			Compkiller:_Animation(TabButton
+ScrollingEnabled = true
 				Position = UDim2.new(0.5, 0, 0.5, 0)
 			})
 
@@ -4678,7 +4402,8 @@ function Compkiller.new(Config : Window)
 				Size = UDim2.new(math.max(Config.Scale.X.Scale - 0.05,0) , Config.Scale.X.Offset - 10 , math.max(Config.Scale.Y.Scale - 0.05,0) , Config.Scale.Y.Offset - 10)
 			})
 
-			Compkiller:_Animation(TabButtonScrollingFrame,TweenInfo.new(0.35),{
+			Compkiller:_Animation(TabButton
+ScrollingEnabled = true
 				Position = UDim2.new(1.5, 100, 0.5, 0)
 			})
 
@@ -4771,32 +4496,8 @@ function Compkiller.new(Config : Window)
 		local UIGradient = Instance.new("UIGradient")
 
 		Category.Name = "Category"
-		Category.Parent = TabButtonScrollingFrame
-		Category.BackgroundTransparency = 1.000
-		Category.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		Category.BorderSizePixel = 0
-		Category.ClipsDescendants = true
-		Category.Size = UDim2.new(1, -10, 0, 22)
-
-		if Compkiller:_IsMobile() then
-			Compkiller:_AddDragBlacklist(Category);
-		end;
-
-		CategoryText.Name = "CategoryText"
-		CategoryText.Parent = Category
-		CategoryText.BackgroundTransparency = 1.000
-		CategoryText.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		CategoryText.BorderSizePixel = 0
-		CategoryText.Position = UDim2.new(0, 5, 0, 8)
-		CategoryText.Size = UDim2.new(1, 200, 0, 10)
-		CategoryText.Font = Enum.Font.Gotham
-		CategoryText.Text = config.Name
-		CategoryText.TextColor3 = Compkiller.Colors.SwitchColor
-		CategoryText.TextSize = 16.000
-		CategoryText.TextTransparency = 0.500
-		CategoryText.TextXAlignment = Enum.TextXAlignment.Left
-		
-		table.insert(Compkiller.Elements.SwitchColor , {
+		Category.Parent = TabButton
+ScrollingEnabled = true
 			Element = CategoryText,
 			Property = 'TextColor3'
 		});
@@ -4864,32 +4565,8 @@ function Compkiller.new(Config : Window)
 		local UICorner = Instance.new("UICorner")
 
 		TabButton.Name = "TabButton"
-		TabButton.Parent = TabButtonScrollingFrame
-		TabButton.BackgroundTransparency = 1.000
-		TabButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		TabButton.BorderSizePixel = 0
-		TabButton.ClipsDescendants = true
-		TabButton.Size = UDim2.new(1, -10, 0, 32)
-		TabButton.ZIndex = 3
-
-		local ImageIcon : table? = Compkiller:_GetIcon(TabConfig.Icon);
-
-		Icon.Name = "Icon"
-		Icon.Parent = TabButton
-		Icon.AnchorPoint = Vector2.new(0, 0.5)
-		Icon.BackgroundColor3 = Compkiller.Colors.Highlight
-		Icon.BackgroundTransparency = 1.000
-		Icon.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		Icon.BorderSizePixel = 0
-		Icon.Position = UDim2.new(0, 15, 0.5, 0)
-		Icon.Size = UDim2.new(0, 22, 0, 22)
-		Icon.ZIndex = 3
-		Icon.ImageRectOffset = ImageIcon.ImageRectPosition
-		Icon.ImageRectSize = ImageIcon.ImageRectSize
-		Icon.Image = ImageIcon.Image
-		Icon.ImageColor3 = Compkiller.Colors.Highlight
-
-		table.insert(Compkiller.Elements.Highlight,{
+		TabButton.Parent = TabButton
+ScrollingEnabled = true
 			Element = Icon,
 			Property = "ImageColor3"
 		});
@@ -5285,40 +4962,8 @@ function Compkiller.new(Config : Window)
 		return TabArgs;
 	end;
 
-	function WindowArgs:AddUnbind(UilistLayout: UIListLayout , Scrolling)
-
-		local Parent: ScrollingFrame = UilistLayout.Parent;
-
-		Parent = Parent or Scrolling;
-
-		local Detection = function()
-			local Target = (UilistLayout.AbsoluteContentSize.Y);
-
-			for i,v in next , Parent:GetChildren() do task.wait(0.1)
-				local UIList = v:FindFirstChildWhichIsA('UIListLayout');
-				if v:IsA('Frame') and UIList then
-					if (UIList.AbsoluteContentSize.Y >= Target) or (v.AbsoluteSize.Y >= Target) or (UilistLayout.AbsoluteContentSize.Y > Parent.AbsoluteSize.Y) then
-						UilistLayout.VerticalFlex = Enum.UIFlexAlignment.None;
-						Parent.ScrollingEnabled = true;
-					else
-						Parent.ScrollingEnabled = false;
-						UilistLayout.VerticalFlex = Enum.UIFlexAlignment.Fill;
-					end;
-				end
-			end;
-		end;
-
-		local Executable = function()
-			while true do task.wait(0.15);
-				pcall(Detection);
-			end;
-		end;
-
-		table.insert(WindowArgs.THREADS,task.spawn(Executable))
-	end;
-
-	function WindowArgs:DrawConfig(Configuration : TabConfigManager , Internal)
-		Configuration = Compkiller.__CONFIG(Configuration,{
+	function WindowArgs:AddUnbind(UilistLayout: 
+Padding = UDim.new(0, 8)
 			Name = "Config",
 			Icon = "folder",
 			Config = nil
@@ -5335,32 +4980,8 @@ function Compkiller.new(Config : Window)
 		local UICorner = Instance.new("UICorner")
 
 		TabButton.Name = "TabButton"
-		TabButton.Parent = TabButtonScrollingFrame
-		TabButton.BackgroundTransparency = 1.000
-		TabButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		TabButton.BorderSizePixel = 0
-		TabButton.ClipsDescendants = true
-		TabButton.Size = UDim2.new(1, -10, 0, 32)
-		TabButton.ZIndex = 3
-
-		local ImageIcon : table? = Compkiller:_GetIcon(Configuration.Icon);
-
-		Icon.Name = "Icon"
-		Icon.Parent = TabButton
-		Icon.AnchorPoint = Vector2.new(0, 0.5)
-		Icon.BackgroundColor3 = Compkiller.Colors.Highlight
-		Icon.BackgroundTransparency = 1.000
-		Icon.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		Icon.BorderSizePixel = 0
-		Icon.Position = UDim2.new(0, 15, 0.5, 0)
-		Icon.Size = UDim2.new(0, 22, 0, 22)
-		Icon.ZIndex = 3
-		Icon.ImageRectOffset = ImageIcon.ImageRectPosition
-		Icon.ImageRectSize = ImageIcon.ImageRectSize
-		Icon.Image = ImageIcon.Image
-		Icon.ImageColor3 = Compkiller.Colors.Highlight
-
-		table.insert(Compkiller.Elements.Highlight,{
+		TabButton.Parent = TabButton
+ScrollingEnabled = true
 			Element = Icon,
 			Property = "ImageColor3"
 		});
@@ -5406,42 +5027,8 @@ function Compkiller.new(Config : Window)
 		local Header = Instance.new("Frame")
 		local SectionText = Instance.new("TextLabel")
 		local SectionClose = Instance.new("ImageLabel")
-		local ScrollingFrame = Instance.new("ScrollingFrame")
-		local UIListLayout = Instance.new("UIListLayout")
-		local Space = Instance.new("Frame")
-		local AddConfig = Instance.new("Frame")
-		local UICorner_2 = Instance.new("UICorner")
-		local UIStroke_2 = Instance.new("UIStroke")
-		local Header_2 = Instance.new("Frame")
-		local SectionText_2 = Instance.new("TextLabel")
-		local SectionClose_2 = Instance.new("ImageLabel")
-		local Frame = Instance.new("Frame")
-		local UIStroke_3 = Instance.new("UIStroke")
-		local UICorner_3 = Instance.new("UICorner")
-		local TextBox = Instance.new("TextBox")
-		local Button = Instance.new("Frame")
-		local BlockLine = Instance.new("Frame")
-		local Frame_2 = Instance.new("Frame")
-		local UIStroke_4 = Instance.new("UIStroke")
-		local UICorner_4 = Instance.new("UICorner")
-		local TextLabel = Instance.new("TextLabel")
-
-		TabConfig.Name = "TabConfig"
-		TabConfig.Parent = TabMainFrame
-		TabConfig.AnchorPoint = Vector2.new(0.5, 0.5)
-		TabConfig.BackgroundTransparency = 1.000
-		TabConfig.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		TabConfig.BorderSizePixel = 0
-		TabConfig.Position = UDim2.new(0.5, 0, 0.5, 0)
-		TabConfig.Size = UDim2.new(1, 0, 1, 0)
-		TabConfig.ZIndex = 6
-
-		ConfigList.Name = "ConfigList"
-		ConfigList.Parent = TabConfig
-		ConfigList.AnchorPoint = Vector2.new(0.5, 0)
-		ConfigList.BackgroundColor3 = Compkiller.Colors.BlockColor
-		
-		table.insert(Compkiller.Elements.BlockColor , {
+		local 
+ScrollingEnabled = true
 			Element = ConfigList,
 			Property = "BackgroundColor3"
 		});
@@ -5504,34 +5091,8 @@ function Compkiller.new(Config : Window)
 		SectionClose.Image = "rbxassetid://10709790948"
 		SectionClose.ImageTransparency = 0.500
 
-		ScrollingFrame.Parent = ConfigList
-		ScrollingFrame.Active = true
-		ScrollingFrame.AnchorPoint = Vector2.new(0.5, 0)
-		ScrollingFrame.BackgroundTransparency = 1.000
-		ScrollingFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		ScrollingFrame.BorderSizePixel = 0
-		ScrollingFrame.Position = UDim2.new(0.5, 0, 0, 35)
-		ScrollingFrame.Size = UDim2.new(1, -10, 1, -45)
-		ScrollingFrame.ZIndex = 12
-		ScrollingFrame.ScrollBarThickness = 0
-
-		UIListLayout.Parent = ScrollingFrame
-		UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		UIListLayout.Padding = UDim.new(0, 7)
-
-		Space.Name = "Space"
-		Space.Parent = ScrollingFrame
-		Space.BackgroundTransparency = 1.000
-		Space.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		Space.BorderSizePixel = 0
-
-		AddConfig.Name = "AddConfig"
-		AddConfig.Parent = TabConfig
-		AddConfig.AnchorPoint = Vector2.new(0.5, 1)
-		AddConfig.BackgroundColor3 = Compkiller.Colors.BlockColor
-		
-		table.insert(Compkiller.Elements.BlockColor , {
+		
+ScrollingEnabled = true
 			Element = AddConfig,
 			Property = "BackgroundColor3"
 		});
@@ -5982,73 +5543,8 @@ function Compkiller.new(Config : Window)
 			local ConfigBlock = Instance.new("Frame")
 			local ConfigText = Instance.new("TextLabel")
 			local LinkValues = Instance.new("Frame")
-			local UIListLayout = Instance.new("UIListLayout")
-			local SaveButton = Instance.new("Frame")
-			local Frame = Instance.new("Frame")
-			local UIStroke = Instance.new("UIStroke")
-			local UICorner = Instance.new("UICorner")
-			local TextLabel = Instance.new("TextLabel")
-			local Icon = Instance.new("ImageLabel")
-			local LoadButton = Instance.new("Frame")
-			local Frame_2 = Instance.new("Frame")
-			local UIStroke_2 = Instance.new("UIStroke")
-			local UICorner_2 = Instance.new("UICorner")
-			local TextLabel_2 = Instance.new("TextLabel")
-			local Icon_2 = Instance.new("ImageLabel")
-			local UIStroke_3 = Instance.new("UIStroke")
-			local UICorner_3 = Instance.new("UICorner")
-			local AuthorText = Instance.new("TextLabel")
-			local DelButton = Instance.new("ImageButton")
-			local UICorner = Instance.new("UICorner")
-			local UIGradient = Instance.new("UIGradient")
-
-			DelButton.Name = "DelButton"
-			DelButton.Parent = LinkValues
-			DelButton.BackgroundTransparency = 1.000
-			DelButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
-			DelButton.BorderSizePixel = 0
-			DelButton.LayoutOrder = -9999
-			DelButton.Size = UDim2.new(0, 35, 0, 15)
-			DelButton.ZIndex = 14
-			DelButton.Image = "rbxassetid://10747362393"
-			DelButton.ImageColor3 = Color3.fromRGB(255, 107, 107)
-			DelButton.ImageTransparency = 0.500
-			DelButton.ScaleType = Enum.ScaleType.Fit
-
-			UICorner.CornerRadius = UDim.new(1, 0)
-			UICorner.Parent = DelButton
-			ConfigBlock.Name = "ConfigBlock"
-			ConfigBlock.Parent = ScrollingFrame
-			ConfigBlock.BackgroundColor3 = Color3.fromRGB(33, 34, 40)
-			ConfigBlock.BorderColor3 = Color3.fromRGB(0, 0, 0)
-			ConfigBlock.BorderSizePixel = 0
-			ConfigBlock.BackgroundTransparency = 1
-			ConfigBlock.Size = UDim2.new(1, -1, 0, 40)
-			ConfigBlock.ZIndex = 10
-
-			ConfigText.Name = "ConfigText"
-			ConfigText.Parent = ConfigBlock
-			ConfigText.AnchorPoint = Vector2.new(0, 0.5)
-			ConfigText.BackgroundTransparency = 1.000
-			ConfigText.BorderColor3 = Color3.fromRGB(0, 0, 0)
-			ConfigText.BorderSizePixel = 0
-			ConfigText.Position = UDim2.new(0, 12, 0.5, 15)
-			ConfigText.Size = UDim2.new(1, -20, 0, 25)
-			ConfigText.ZIndex = 10
-			ConfigText.Font = Enum.Font.GothamMedium
-			ConfigText.RichText = true;
-			ConfigText.Text = "Config"
-			ConfigText.TextColor3 = Compkiller.Colors.SwitchColor
-			ConfigText.TextSize = 13.000
-			ConfigText.TextTransparency = 1
-			ConfigText.TextXAlignment = Enum.TextXAlignment.Left
-			
-			table.insert(Compkiller.Elements.SwitchColor , {
-				Element = ConfigText,
-				Property = 'TextColor3'
-			});
-			
-			UIGradient.Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0.00, 0.00), NumberSequenceKeypoint.new(0.29, 0.00), NumberSequenceKeypoint.new(0.33, 1.00), NumberSequenceKeypoint.new(1.00, 1.00)}
+			local 
+Padding = UDim.new(0, 8)NumberSequenceKeypoint.new(0.00, 0.00), NumberSequenceKeypoint.new(0.29, 0.00), NumberSequenceKeypoint.new(0.33, 1.00), NumberSequenceKeypoint.new(1.00, 1.00)}
 			UIGradient.Parent = ConfigText
 
 			LinkValues.Name = "LinkValues"
@@ -6404,35 +5900,8 @@ function Compkiller.new(Config : Window)
 			local Refresh = function()
 				local FullConfig = Configuration.Config:GetFullConfigs();
 
-				for i,v in next, ScrollingFrame:GetChildren() do
-					if v:IsA('Frame') and v.Name ~= "Space" then
-						v:Destroy();
-					end;
-				end;
-
-				for i,v in next , __signals do
-					v:Disconnect();
-				end;
-
-				for i,v in next , FullConfig do
-					local Button = TabArgs:_DrawConfig();
-
-					Button:SetInfo(v.Info.Author,v.Name);
-
-					table.insert(__signals,TabOpenSignal:Connect(function(v)
-						Button:Toggle(v);
-					end));
-
-					Button.OnLoad = function()
-						Configuration.Config:LoadConfig(v.Name);
-					end;
-
-					Button.OnSave = function()
-						local NewAuthorText = ((v.Info.Author == WindowArgs.Username) and  WindowArgs.Username) or v.Info.Author .. " [EDIT]";
-
-						Button:SetInfo(NewAuthorText,v.Name);
-
-						Configuration.Config:WriteConfig({
+				for i,v in next, 
+ScrollingEnabled = true
 							Name = v.Name,
 							Author = NewAuthorText;
 						});
@@ -6918,21 +6387,8 @@ function Compkiller.new(Config : Window)
 			local Section = Instance.new("Frame")
 			local UICorner = Instance.new("UICorner")
 			local UIStroke = Instance.new("UIStroke")
-			local UIListLayout = Instance.new("UIListLayout")
-			local Header = Instance.new("Frame")
-			local SectionText = Instance.new("TextLabel")
-			local SectionClose = Instance.new("ImageLabel")
-
-			Section.Name = "Section"
-			Section.Parent = (TabConfig.Type == "Double" and ((string.lower(config.Position) == "left" and Upvalue.Left) or Upvalue.Right)) or Upvalue.Left;
-
-			if TabConfig.Type == "Single" then
-				Section.Parent = Upvalue.Left;
-			end;
-
-			Section.BackgroundColor3 = Compkiller.Colors.BlockColor
-			
-			table.insert(Compkiller.Elements.BlockColor , {
+			local 
+Padding = UDim.new(0, 8)
 				Element = Section,
 				Property = "BackgroundColor3"
 			});
@@ -7006,14 +6462,8 @@ function Compkiller.new(Config : Window)
 				Header.Visible = true;
 			end;
 
-			UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				if not SectionText.Text:byte() then
-					Header.Visible = false;
-				else
-					Header.Visible = true;
-				end;
-
-				Compkiller:_Animation(Section,TweenInfo.new(0.1),{
+			
+Padding = UDim.new(0, 8)
 					Size = UDim2.new(1, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 				})
 			end);
@@ -7127,14 +6577,8 @@ function Compkiller.new(Config : Window)
 			local Frame = Instance.new("Frame")
 			local CompLogo = Instance.new("ImageLabel")
 			local WaternarkList = Instance.new("Frame")
-			local UIListLayout = Instance.new("UIListLayout")
-
-			Watermark.Name = "Watermark"
-			Watermark.Parent = CompKiller
-			Watermark.AnchorPoint = Vector2.new(1, 0)
-			Watermark.BackgroundColor3 = Compkiller.Colors.BGDBColor
-			
-			table.insert(Compkiller.Elements.BGDBColor,{
+			local 
+Padding = UDim.new(0, 8)
 				Element = Watermark,
 				Property = 'BackgroundColor3'
 			});
