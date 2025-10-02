@@ -6988,6 +6988,8 @@ function Compkiller.new(Config : Window)
 			Section.Size = UDim2.new(1, 0, 0, 0)
 			Section.ZIndex = 9
 
+			Section.ClipsDescendants = true
+
 			UICorner.CornerRadius = UDim.new(0, 6)
 			UICorner.Parent = Section
 
