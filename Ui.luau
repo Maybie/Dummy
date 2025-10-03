@@ -7856,17 +7856,17 @@ function Compkiller.newNotify()
 
 	NotifyContainer.Name = "NotifyContainer"
 	NotifyContainer.Parent = Notification
-	NotifyContainer.AnchorPoint = Vector2.new(1, 0)
+	NotifyContainer.AnchorPoint = Vector2.new(1, 1)
 	NotifyContainer.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	NotifyContainer.BackgroundTransparency = 1.000
 	NotifyContainer.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	NotifyContainer.BorderSizePixel = 0
-	NotifyContainer.Position = UDim2.new(1, -10, 0, 1)
-	NotifyContainer.Size = UDim2.new(0, 100, 0, 100)
+	NotifyContainer.Position = UDim2.new(1, -10, 1, -10)
 
 	UIListLayout.Parent = NotifyContainer
 	UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
 	UIListLayout.Padding = UDim.new(0, 3)
 	
 	return {
@@ -7976,7 +7976,11 @@ function Compkiller.newNotify()
 
 			TimeLeft.Name = "TimeLeft"
 			TimeLeft.Parent = TimeLeftFrame
-			TimeLeft.BackgroundColor3 = Color3.fromRGB(0, 255, 110)
+			TimeLeft.BackgroundColor3 = Compkiller.Colors.Highlight
+			table.insert(Compkiller.Elements.Highlight, {
+				Element = TimeLeft,
+				Property = "BackgroundColor3"
+			})
 			TimeLeft.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			TimeLeft.BorderSizePixel = 0
 			TimeLeft.Size = UDim2.new(0, 0, 1, 0)
