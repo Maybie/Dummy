@@ -5296,7 +5296,7 @@ function Compkiller.new(Config : Window)
 						Parent.ScrollingEnabled = true;
 					else
 						Parent.ScrollingEnabled = false;
-						UilistLayout.VerticalFlex = Enum.UIFlexAlignment.Fill;
+						UilistLayout.VerticalFlex = Enum.UIFlexAlignment.None;
 					end;
 				end
 			end;
@@ -6513,7 +6513,7 @@ function Compkiller.new(Config : Window)
 			UIListLayout.Parent = Left
 			UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 			UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-			UIListLayout.VerticalFlex = Enum.UIFlexAlignment.Fill
+			UIListLayout.VerticalFlex = Enum.UIFlexAlignment.None
 			UIListLayout.Padding = UDim.new(0, 10)
 
 			Right.Name = "Right"
@@ -6544,7 +6544,7 @@ function Compkiller.new(Config : Window)
 			UIListLayout_2.HorizontalAlignment = Enum.HorizontalAlignment.Center
 			UIListLayout_2.SortOrder = Enum.SortOrder.LayoutOrder
 			UIListLayout_2.Padding = UDim.new(0, 10)
-			UIListLayout_2.VerticalFlex = Enum.UIFlexAlignment.Fill
+			UIListLayout_2.VerticalFlex = Enum.UIFlexAlignment.None
 
 			if Compkiller:_IsMobile() or TabConfig.EnableScrolling then
 				WindowArgs:AddUnbind(UIListLayout_2 , Right);
@@ -6695,7 +6695,7 @@ function Compkiller.new(Config : Window)
 			UIListLayout.Parent = Left
 			UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 			UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-			UIListLayout.VerticalFlex = Enum.UIFlexAlignment.Fill
+			UIListLayout.VerticalFlex = Enum.UIFlexAlignment.None
 			UIListLayout.Padding = UDim.new(0, 10)
 
 			Right.Name = "Right"
@@ -6726,7 +6726,7 @@ function Compkiller.new(Config : Window)
 			UIListLayout_2.HorizontalAlignment = Enum.HorizontalAlignment.Center
 			UIListLayout_2.SortOrder = Enum.SortOrder.LayoutOrder
 			UIListLayout_2.Padding = UDim.new(0, 10)
-			UIListLayout_2.VerticalFlex = Enum.UIFlexAlignment.Fill
+			UIListLayout_2.VerticalFlex = Enum.UIFlexAlignment.None
 
 			if Compkiller:_IsMobile() or TabConfig.EnableScrolling then
 				WindowArgs:AddUnbind(UIListLayout_2 , Right);
