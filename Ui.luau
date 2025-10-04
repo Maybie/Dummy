@@ -3489,7 +3489,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		BlockText.Position = UDim2.new(0, 12, 0, 12)
 		BlockText.Size = UDim2.new(1, -20, 0, 25)
 		BlockText.ZIndex = Zindex + 3
-		BlockText.Font = Enum.Font.Code
+		BlockText.Font = Enum.Font.GothamMedium
 		BlockText.Text = Config.Title
 		BlockText.TextColor3 = Compkiller.Colors.SwitchColor
 		BlockText.TextSize = 14.000
