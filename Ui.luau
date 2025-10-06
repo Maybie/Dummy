@@ -1369,6 +1369,10 @@ function Compkiller:_CreateBlock(Signal)
 		end;
 	end;
 
+	function rep:Destroy()
+    	GlobalBlock:Destroy()
+	end;
+
 	function rep:AddLink(Name , Default)
 		return Compkiller:_AddLinkValue(Name , Default , GlobalBlock , LinkValues , rep , Signal);
 	end;
@@ -2794,6 +2798,13 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 
 		return Args;
 	end;
+	
+    function Args:Destroy()
+        Parent:Destroy()
+	end;
+
+	return Args;
+end
 
 	function Args:AddKeybind(Config : Keybind)
 		Config = Compkiller.__CONFIG(Config,{
