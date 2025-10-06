@@ -2378,11 +2378,21 @@ function Compkiller:_LoadOption(Value , TabSignal)
 			end
 		end)		
 
-		return Compkiller:_LoadElement(Elements , true , Signal)
+		local OptionHandler = Compkiller:_LoadElement(Elements , true , Signal)
+
+		function OptionHandler:Destroy()
+			ExtractElement:Destroy()
+		end
+
+		return OptionHandler
 	end;
 
+	function Args:Destroy()
+		Value.Root:Destroy()
+	end
+	
 	return Args;
-end;
+end
 
 function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	local Window = Compkiller:_GetWindowFromElement(BaseParent);
@@ -2799,13 +2809,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		return Args;
 	end;
 	
-    function Args:Destroy()
-        Parent:Destroy()
-	end;
-
-	return Args;
-end
-
 	function Args:AddKeybind(Config : Keybind)
 		Config = Compkiller.__CONFIG(Config,{
 			Name = "Keybind",
