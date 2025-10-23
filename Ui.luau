@@ -1,3 +1,14 @@
+--[[
+    		Fatality-Dark Interface
+
+    Author: 4lpaca
+    License: MIT
+    Modified by me! (@maxlasertech)
+    Github: https://github.com/4lpaca-pin/CompKiller
+--]]
+
+--- Export Types ---
+
 export type cloneref = (target: Instance) -> Instance;
 
 export type Window = {
