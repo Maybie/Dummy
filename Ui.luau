@@ -7342,7 +7342,6 @@ function Compkiller.new(Config : Window)
 			end);
 		end;
 
---[[
 		table.insert(WindowArgs.THREADS,task.spawn(function()
 			while true do task.wait(0.15)
 				if Compkiller:_IsMobile() then
@@ -7377,7 +7376,7 @@ function Compkiller.new(Config : Window)
 			end;
 		end);
 	end;
---]]
+
 	function WindowArgs:Update(config: WindowUpdate)
 		config = config or {};
 		config.Logo = config.Logo or Config.Logo;
