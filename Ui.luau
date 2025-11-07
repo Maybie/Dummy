@@ -7377,7 +7377,7 @@ function Compkiller.new(Config : Window)
 			end;
 		end);
 	end;
-]]
+--]]
 	function WindowArgs:Update(config: WindowUpdate)
 		config = config or {};
 		config.Logo = config.Logo or Config.Logo;
