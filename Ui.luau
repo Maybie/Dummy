@@ -7511,6 +7511,11 @@ function Compkiller.new(Config : Window)
 		end);
 	end);
 
+	WindowArgs.__MainFrame = MainFrame;
+	WindowArgs.__ScreenGui = CompKiller;
+	WindowArgs.__WindowOpen = WindowOpen;
+	Compkiller.LastWindow = WindowArgs;
+
 	return WindowArgs;
 end;
 
@@ -8033,5 +8038,849 @@ function Compkiller.newNotify()
 		end,
 	};
 end;
+
+
+--[[
+    Dummy Hub Astral extension
+    Sortable modal / priority editor foundation
+    v4: attached modal + config manager support + visual polish
+]]
+
+export type SortableListItem = {
+    Id: string,
+    Name: string,
+    Description: string?,
+    Locked: boolean?,
+};
+
+export type SortableListConfig = {
+    Title: string,
+    Items: {SortableListItem | string},
+    Size: UDim2?,
+    Flag: string?,
+    AttachedTo: any?,
+    OnClick: ((Item: SortableListItem, Index: number) -> any?)?,
+    OnChanged: ((Order: {SortableListItem}) -> any?)?,
+    OnDone: ((Order: {SortableListItem}) -> any?)?,
+};
+
+local function __SortableCopyItem(Item)
+    if type(Item) == "table" then
+        return {
+            Id = tostring(Item.Id or Item.Name or "Item"),
+            Name = tostring(Item.Name or Item.Id or "Item"),
+            Description = Item.Description,
+            Locked = Item.Locked == true,
+        };
+    end;
+
+    return {
+        Id = tostring(Item),
+        Name = tostring(Item),
+        Description = nil,
+        Locked = false,
+    };
+end;
+
+local function __SortableCopyItems(Items)
+    local Out = {};
+    for _, Item in ipairs(Items or {}) do
+        table.insert(Out, __SortableCopyItem(Item));
+    end;
+    return Out;
+end;
+
+local function __SortableIds(Items)
+    local Out = {};
+    for _, Item in ipairs(Items or {}) do
+        table.insert(Out, tostring(Item.Id));
+    end;
+    return Out;
+end;
+
+local function __SortableOrderByIds(Items, Value)
+    local Existing = {};
+    for _, Item in ipairs(Items or {}) do
+        Existing[tostring(Item.Id)] = __SortableCopyItem(Item);
+    end;
+
+    local Used = {};
+    local Out = {};
+
+    if type(Value) == "table" then
+        for _, Entry in ipairs(Value) do
+            local Id;
+            if type(Entry) == "table" then
+                Id = Entry.Id or Entry.Name;
+            else
+                Id = Entry;
+            end;
+
+            Id = tostring(Id or "");
+            if Existing[Id] and not Used[Id] then
+                table.insert(Out, Existing[Id]);
+                Used[Id] = true;
+            end;
+        end;
+    end;
+
+    for _, Item in ipairs(Items or {}) do
+        local Id = tostring(Item.Id);
+        if not Used[Id] then
+            table.insert(Out, __SortableCopyItem(Item));
+            Used[Id] = true;
+        end;
+    end;
+
+    return Out;
+end;
+
+local function __SortableGetAttachFrame(AttachedTo)
+    if type(AttachedTo) == "table" and AttachedTo.__MainFrame then
+        return AttachedTo.__MainFrame;
+    end;
+
+    if typeof(AttachedTo) == "Instance" and AttachedTo:IsA("GuiObject") then
+        return AttachedTo;
+    end;
+
+    if Compkiller.LastWindow and Compkiller.LastWindow.__MainFrame then
+        return Compkiller.LastWindow.__MainFrame;
+    end;
+
+    return nil;
+end;
+
+function Compkiller:CreateSortableList(Config: SortableListConfig)
+    Config = Config or {};
+
+    local Items = __SortableCopyItems(Config.Items or {});
+    local Flag = Config.Flag;
+    local OnChanged = Config.OnChanged or function() end;
+    local OnDone = Config.OnDone or function() end;
+    local OnClick = Config.OnClick or function() end;
+    local CurrentModal = nil;
+
+    local API = {};
+
+    local function CopyOrder()
+        return __SortableCopyItems(Items);
+    end;
+
+    local function ApplyValue(Value, Silent)
+        Items = __SortableOrderByIds(Items, Value);
+
+        if CurrentModal and CurrentModal.SetItems then
+            CurrentModal:SetItems(Items, true);
+        end;
+
+        if not Silent then
+            task.spawn(function()
+                OnChanged(CopyOrder());
+            end);
+        end;
+    end;
+
+    API.Flag = Flag;
+
+    function API:GetOrder()
+        return CopyOrder();
+    end;
+
+    function API:GetValue()
+        return __SortableIds(Items);
+    end;
+
+    function API:SetValue(Value)
+        ApplyValue(Value, false);
+    end;
+
+    function API:Open()
+        if CurrentModal and CurrentModal.Close then
+            pcall(function()
+                CurrentModal:Close();
+            end);
+            CurrentModal = nil;
+        end;
+
+        CurrentModal = Compkiller:OpenSortableList({
+            Title = Config.Title,
+            Items = Items,
+            Size = Config.Size,
+            AttachedTo = Config.AttachedTo,
+            OnClick = function(Item, Index)
+                OnClick(Item, Index);
+            end,
+            OnChanged = function(NewOrder)
+                Items = __SortableCopyItems(NewOrder);
+                OnChanged(CopyOrder());
+            end,
+            OnDone = function(NewOrder)
+                Items = __SortableCopyItems(NewOrder);
+                OnDone(CopyOrder());
+            end,
+        });
+
+        return CurrentModal;
+    end;
+
+    function API:SetItems(NewItems)
+        Items = __SortableCopyItems(NewItems or {});
+        if CurrentModal and CurrentModal.SetItems then
+            CurrentModal:SetItems(Items, true);
+        end;
+        task.spawn(function()
+            OnChanged(CopyOrder());
+        end);
+    end;
+
+    if Flag then
+        Compkiller.Flags[Flag] = API;
+    end;
+
+    return API;
+end;
+
+function Compkiller:OpenSortableList(Config: SortableListConfig)
+    Config = Config or {};
+    local Title = Config.Title or "Sortable List";
+    local RawItems = Config.Items or {};
+    local ModalSize = Config.Size or UDim2.new(0, 388, 0, 438);
+    local OnClick = Config.OnClick or function() end;
+    local OnChanged = Config.OnChanged or function() end;
+    local OnDone = Config.OnDone or function() end;
+    local AttachFrame = __SortableGetAttachFrame(Config.AttachedTo);
+
+    local Items = __SortableCopyItems(RawItems);
+
+    local function CopyOrder()
+        return __SortableCopyItems(Items);
+    end;
+
+    local ExistingParent = AttachFrame or CoreGui;
+    local Existing = ExistingParent:FindFirstChild("CompkillerSortableModal");
+    if Existing then
+        Existing:Destroy();
+    end;
+
+    local Gui;
+    local Main = Instance.new("Frame");
+    local MainCorner = Instance.new("UICorner");
+    local MainStroke = Instance.new("UIStroke");
+    local Header = Instance.new("Frame");
+    local HeaderTitle = Instance.new("TextLabel");
+    local Close = Instance.new("TextButton");
+    local CloseCorner = Instance.new("UICorner");
+    local Divider = Instance.new("Frame");
+    local List = Instance.new("ScrollingFrame");
+    local Footer = Instance.new("Frame");
+    local Done = Instance.new("TextButton");
+    local DoneCorner = Instance.new("UICorner");
+    local DoneStroke = Instance.new("UIStroke");
+    local Hint = Instance.new("TextLabel");
+
+    if AttachFrame then
+        Main.Name = "CompkillerSortableModal";
+        Main.Parent = AttachFrame;
+    else
+        Gui = Instance.new("ScreenGui");
+        Gui.Name = "CompkillerSortableModal";
+        Gui.ResetOnSpawn = false;
+        Gui.IgnoreGuiInset = true;
+        Gui.ZIndexBehavior = Enum.ZIndexBehavior.Global;
+        Gui.Parent = CoreGui;
+
+        Main.Name = "Main";
+        Main.Parent = Gui;
+    end;
+
+    Main.AnchorPoint = AttachFrame and Vector2.new(0, 0.5) or Vector2.new(0.5, 0.5);
+    Main.BackgroundColor3 = Compkiller.Colors.BGDBColor;
+    Main.BackgroundTransparency = 0.04;
+    Main.BorderSizePixel = 0;
+    Main.Position = AttachFrame and UDim2.new(1, 8, 0.5, 0) or UDim2.new(0.5, 0, 0.5, 0);
+    Main.Size = UDim2.new(0, ModalSize.X.Offset, 0, 0);
+    Main.ZIndex = 901;
+    Main.ClipsDescendants = true;
+
+    table.insert(Compkiller.Elements.BGDBColor, {
+        Element = Main,
+        Property = "BackgroundColor3"
+    });
+
+    MainCorner.CornerRadius = UDim.new(0, 7);
+    MainCorner.Parent = Main;
+
+    MainStroke.Color = Compkiller.Colors.StrokeColor;
+    MainStroke.Thickness = 1;
+    MainStroke.Transparency = 0.16;
+    MainStroke.Parent = Main;
+
+    table.insert(Compkiller.Elements.StrokeColor, {
+        Element = MainStroke,
+        Property = "Color"
+    });
+
+    Header.Name = "Header";
+    Header.Parent = Main;
+    Header.BackgroundTransparency = 1;
+    Header.BorderSizePixel = 0;
+    Header.Size = UDim2.new(1, 0, 0, 42);
+    Header.ZIndex = 902;
+
+    HeaderTitle.Name = "HeaderTitle";
+    HeaderTitle.Parent = Header;
+    HeaderTitle.BackgroundTransparency = 1;
+    HeaderTitle.Position = UDim2.new(0, 14, 0, 0);
+    HeaderTitle.Size = UDim2.new(1, -56, 1, 0);
+    HeaderTitle.Font = Enum.Font.GothamMedium;
+    HeaderTitle.Text = Title;
+    HeaderTitle.TextColor3 = Compkiller.Colors.SwitchColor;
+    HeaderTitle.TextSize = 14;
+    HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left;
+    HeaderTitle.ZIndex = 903;
+
+    table.insert(Compkiller.Elements.SwitchColor, {
+        Element = HeaderTitle,
+        Property = "TextColor3"
+    });
+
+    Close.Name = "Close";
+    Close.Parent = Header;
+    Close.AnchorPoint = Vector2.new(1, 0.5);
+    Close.BackgroundColor3 = Compkiller.Colors.MouseEnter;
+    Close.BackgroundTransparency = 1;
+    Close.BorderSizePixel = 0;
+    Close.Position = UDim2.new(1, -10, 0.5, 0);
+    Close.Size = UDim2.new(0, 27, 0, 27);
+    Close.Font = Enum.Font.GothamBold;
+    Close.Text = "×";
+    Close.TextColor3 = Compkiller.Colors.SwitchColor;
+    Close.TextSize = 16;
+    Close.ZIndex = 904;
+
+    CloseCorner.CornerRadius = UDim.new(0, 5);
+    CloseCorner.Parent = Close;
+
+    Divider.Name = "Divider";
+    Divider.Parent = Main;
+    Divider.BackgroundColor3 = Compkiller.Colors.LineColor;
+    Divider.BackgroundTransparency = 0.58;
+    Divider.BorderSizePixel = 0;
+    Divider.Position = UDim2.new(0, 0, 0, 42);
+    Divider.Size = UDim2.new(1, 0, 0, 1);
+    Divider.ZIndex = 904;
+
+    table.insert(Compkiller.Elements.LineColor, {
+        Element = Divider,
+        Property = "BackgroundColor3"
+    });
+
+    List.Name = "List";
+    List.Parent = Main;
+    List.BackgroundTransparency = 1;
+    List.BorderSizePixel = 0;
+    List.Position = UDim2.new(0, 10, 0, 52);
+    List.Size = UDim2.new(1, -20, 1, -88);
+    List.ScrollBarThickness = 3;
+    List.ScrollBarImageColor3 = Compkiller.Colors.Highlight;
+    List.CanvasSize = UDim2.new(0, 0, 0, 0);
+    List.ZIndex = 902;
+
+    Footer.Name = "Footer";
+    Footer.Parent = Main;
+    Footer.AnchorPoint = Vector2.new(0, 1);
+    Footer.BackgroundTransparency = 1;
+    Footer.Position = UDim2.new(0, 0, 1, 0);
+    Footer.Size = UDim2.new(1, 0, 0, 44);
+    Footer.ZIndex = 902;
+
+    Hint.Name = "Hint";
+    Hint.Parent = Footer;
+    Hint.BackgroundTransparency = 1;
+    Hint.Position = UDim2.new(0, 14, 0, 0);
+    Hint.Size = UDim2.new(1, -126, 1, 0);
+    Hint.Font = Enum.Font.GothamMedium;
+    Hint.Text = "Drag to reorder · click to select";
+    Hint.TextColor3 = Compkiller.Colors.SwitchColor;
+    Hint.TextTransparency = 0.68;
+    Hint.TextSize = 10;
+    Hint.TextXAlignment = Enum.TextXAlignment.Left;
+    Hint.ZIndex = 903;
+
+    Done.Name = "Done";
+    Done.Parent = Footer;
+    Done.AnchorPoint = Vector2.new(1, 0.5);
+    Done.BackgroundColor3 = Compkiller.Colors.Highlight;
+    Done.BackgroundTransparency = 0.12;
+    Done.BorderSizePixel = 0;
+    Done.Position = UDim2.new(1, -12, 0.5, 0);
+    Done.Size = UDim2.new(0, 94, 0, 29);
+    Done.Font = Enum.Font.GothamBold;
+    Done.Text = "Done";
+    Done.TextColor3 = Color3.fromRGB(0, 0, 0);
+    Done.TextSize = 12;
+    Done.ZIndex = 903;
+
+    table.insert(Compkiller.Elements.Highlight, {
+        Element = Done,
+        Property = "BackgroundColor3"
+    });
+
+    DoneCorner.CornerRadius = UDim.new(0, 5);
+    DoneCorner.Parent = Done;
+
+    DoneStroke.Color = Compkiller.Colors.HighStrokeColor;
+    DoneStroke.Transparency = 0.38;
+    DoneStroke.Parent = Done;
+
+    local Closed = false;
+    local DraggingId = nil;
+    local DragMoved = false;
+    local DragStart = nil;
+    local DragOffsetY = 0;
+    local SelectedId = nil;
+    local Rows = {};
+    local ItemHeight = 43;
+    local DragHeight = 49;
+    local ItemPadding = 8;
+    local TopPadding = 2;
+
+    local function CloseModal()
+        if Closed then
+            return;
+        end;
+        Closed = true;
+        if Gui then
+            Gui:Destroy();
+        else
+            Main:Destroy();
+        end;
+    end;
+
+    local function FireChanged()
+        task.spawn(function()
+            OnChanged(CopyOrder());
+        end);
+    end;
+
+    local function GetIndexById(Id)
+        for Index, Item in ipairs(Items) do
+            if Item.Id == Id then
+                return Index;
+            end;
+        end;
+        return nil;
+    end;
+
+    local function MoveItem(FromIndex, ToIndex)
+        if not FromIndex or not ToIndex or FromIndex == ToIndex then
+            return;
+        end;
+        if FromIndex < 1 or FromIndex > #Items or ToIndex < 1 or ToIndex > #Items then
+            return;
+        end;
+
+        local Item = table.remove(Items, FromIndex);
+        table.insert(Items, ToIndex, Item);
+        FireChanged();
+    end;
+
+    local function YForIndex(Index)
+        return TopPadding + ((Index - 1) * (ItemHeight + ItemPadding));
+    end;
+
+    local function IndexFromMouseY(Y)
+        local Relative = Y - List.AbsolutePosition.Y + List.CanvasPosition.Y;
+        local Row = math.floor((Relative + ((ItemHeight + ItemPadding) / 2)) / (ItemHeight + ItemPadding)) + 1;
+        return math.clamp(Row, 1, math.max(#Items, 1));
+    end;
+
+    local function Tween(Object, Info, Props)
+        if Closed or not Object then
+            return;
+        end;
+        TweenService:Create(Object, Info, Props):Play();
+    end;
+
+    local function StyleRow(Row, RowStroke, Item, IsHover, IsDragging, IsSelected)
+        if Closed or not Row or not RowStroke then
+            return;
+        end;
+
+        local TargetColor = Compkiller.Colors.BlockColor;
+        local StrokeColor = Compkiller.Colors.StrokeColor;
+        local StrokeTransparency = 0;
+
+        if IsDragging then
+            TargetColor = Compkiller.Colors.MouseEnter;
+            StrokeColor = Compkiller.Colors.Highlight;
+            StrokeTransparency = 0.08;
+        elseif IsHover then
+            TargetColor = Compkiller.Colors.MouseEnter;
+            StrokeColor = Compkiller.Colors.StrokeColor;
+            StrokeTransparency = 0;
+        elseif IsSelected then
+            TargetColor = Compkiller.Colors.BlockColor;
+            StrokeColor = Compkiller.Colors.Highlight;
+            StrokeTransparency = 0.58;
+        end;
+
+        Tween(Row, TweenInfo.new(0.13, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = TargetColor,
+            Size = UDim2.new(1, -4, 0, IsDragging and DragHeight or ItemHeight)
+        });
+
+        Tween(RowStroke, TweenInfo.new(0.13, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Color = StrokeColor,
+            Transparency = StrokeTransparency
+        });
+    end;
+
+    local function UpdateCanvas()
+        List.CanvasSize = UDim2.new(0, 0, 0, TopPadding + (#Items * (ItemHeight + ItemPadding)) + 2);
+    end;
+
+    local UpdateLayout;
+
+    local function RemoveDeadRows()
+        local Alive = {};
+        for _, Item in ipairs(Items) do
+            Alive[Item.Id] = true;
+        end;
+        for Id, RowData in pairs(Rows) do
+            if not Alive[Id] then
+                RowData.Row:Destroy();
+                Rows[Id] = nil;
+            end;
+        end;
+    end;
+
+    local function CreateRow(Item)
+        local Row = Instance.new("Frame");
+        local RowCorner = Instance.new("UICorner");
+        local RowStroke = Instance.new("UIStroke");
+        local Handle = Instance.new("TextLabel");
+        local Name = Instance.new("TextLabel");
+        local Description = Instance.new("TextLabel");
+        local Number = Instance.new("TextLabel");
+        local Button = Instance.new("TextButton");
+
+        Row.Name = "Item_" .. tostring(Item.Id);
+        Row.Parent = List;
+        Row.BackgroundColor3 = Compkiller.Colors.BlockColor;
+        Row.BorderSizePixel = 0;
+        Row.Position = UDim2.new(0, 2, 0, 0);
+        Row.Size = UDim2.new(1, -4, 0, ItemHeight);
+        Row.ZIndex = 904;
+
+        RowCorner.CornerRadius = UDim.new(0, 5);
+        RowCorner.Parent = Row;
+
+        RowStroke.Color = Compkiller.Colors.StrokeColor;
+        RowStroke.Transparency = 0.12;
+        RowStroke.Parent = Row;
+
+        Handle.Name = "Handle";
+        Handle.Parent = Row;
+        Handle.BackgroundTransparency = 1;
+        Handle.Position = UDim2.new(0, 11, 0, 0);
+        Handle.Size = UDim2.new(0, 16, 1, 0);
+        Handle.Font = Enum.Font.GothamBold;
+        Handle.Text = "≡";
+        Handle.TextColor3 = Compkiller.Colors.Highlight;
+        Handle.TextSize = 15;
+        Handle.TextTransparency = 0.2;
+        Handle.ZIndex = 905;
+
+        Number.Name = "Number";
+        Number.Parent = Row;
+        Number.BackgroundTransparency = 1;
+        Number.Position = UDim2.new(0, 34, 0, 0);
+        Number.Size = UDim2.new(0, 22, 1, 0);
+        Number.Font = Enum.Font.GothamMedium;
+        Number.TextColor3 = Compkiller.Colors.SwitchColor;
+        Number.TextSize = 12;
+        Number.TextTransparency = 0.56;
+        Number.TextXAlignment = Enum.TextXAlignment.Left;
+        Number.ZIndex = 905;
+
+        Name.Name = "Name";
+        Name.Parent = Row;
+        Name.BackgroundTransparency = 1;
+        Name.Position = UDim2.new(0, 58, 0, Item.Description and 5 or 0);
+        Name.Size = UDim2.new(1, -68, 0, Item.Description and 18 or ItemHeight);
+        Name.Font = Enum.Font.GothamMedium;
+        Name.TextColor3 = Compkiller.Colors.SwitchColor;
+        Name.TextSize = 12;
+        Name.TextXAlignment = Enum.TextXAlignment.Left;
+        Name.ZIndex = 905;
+
+        Description.Name = "Description";
+        Description.Parent = Row;
+        Description.BackgroundTransparency = 1;
+        Description.Position = UDim2.new(0, 58, 0, 22);
+        Description.Size = UDim2.new(1, -68, 0, 16);
+        Description.Font = Enum.Font.GothamMedium;
+        Description.TextColor3 = Compkiller.Colors.SwitchColor;
+        Description.TextTransparency = 0.66;
+        Description.TextSize = 10;
+        Description.TextXAlignment = Enum.TextXAlignment.Left;
+        Description.ZIndex = 905;
+
+        Button.Name = "Input";
+        Button.Parent = Row;
+        Button.BackgroundTransparency = 1;
+        Button.BorderSizePixel = 0;
+        Button.Size = UDim2.new(1, 0, 1, 0);
+        Button.Text = "";
+        Button.ZIndex = 906;
+
+        local RowData = {
+            Row = Row,
+            Stroke = RowStroke,
+            Handle = Handle,
+            Number = Number,
+            Name = Name,
+            Description = Description,
+            Button = Button,
+            Hover = false,
+        };
+
+        Button.MouseEnter:Connect(function()
+            if Closed then
+                return;
+            end;
+            RowData.Hover = true;
+            if DraggingId ~= Item.Id then
+                StyleRow(Row, RowStroke, Item, true, false, SelectedId == Item.Id);
+                Tween(Handle, TweenInfo.new(0.12), { TextTransparency = 0 });
+            end;
+        end);
+
+        Button.MouseLeave:Connect(function()
+            if Closed then
+                return;
+            end;
+            RowData.Hover = false;
+            if DraggingId ~= Item.Id then
+                StyleRow(Row, RowStroke, Item, false, false, SelectedId == Item.Id);
+                Tween(Handle, TweenInfo.new(0.12), { TextTransparency = 0.2 });
+            end;
+        end);
+
+        Button.InputBegan:Connect(function(Input)
+            if Closed then
+                return;
+            end;
+            if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+                local finder = table.find(Compkiller.DragBlacklist, Button);
+                if not finder then
+                    table.insert(Compkiller.DragBlacklist, Button);
+                end;
+
+                DraggingId = Item.Id;
+                SelectedId = Item.Id;
+                DragMoved = false;
+                DragStart = Input.Position;
+                DragOffsetY = Input.Position.Y - Row.AbsolutePosition.Y;
+                Row.ZIndex = 930;
+                for _, Child in ipairs(Row:GetDescendants()) do
+                    if Child:IsA("GuiObject") then
+                        Child.ZIndex = math.max(Child.ZIndex, 931);
+                    end;
+                end;
+                StyleRow(Row, RowStroke, Item, true, true, true);
+            end;
+        end);
+
+        Button.InputEnded:Connect(function(Input)
+            if Closed then
+                return;
+            end;
+            if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+                local finder = table.find(Compkiller.DragBlacklist, Button);
+                if finder then
+                    table.remove(Compkiller.DragBlacklist, finder);
+                end;
+
+                local ClickedId = DraggingId;
+                local WasClick = not DragMoved;
+                DraggingId = nil;
+                DragStart = nil;
+                UpdateLayout(true);
+
+                if WasClick and ClickedId then
+                    local Index = GetIndexById(ClickedId);
+                    local ClickedItem = Index and Items[Index];
+                    if ClickedItem then
+                        task.spawn(function()
+                            OnClick(__SortableCopyItem(ClickedItem), Index);
+                        end);
+                    end;
+                end;
+            end;
+        end);
+
+        Rows[Item.Id] = RowData;
+        return RowData;
+    end;
+
+    UpdateLayout = function(Animate)
+        RemoveDeadRows();
+        UpdateCanvas();
+
+        for Index, Item in ipairs(Items) do
+            local RowData = Rows[Item.Id] or CreateRow(Item);
+            local Row = RowData.Row;
+            local IsDragging = DraggingId == Item.Id;
+
+            RowData.Number.Text = tostring(Index) .. ".";
+            RowData.Name.Text = Item.Name;
+            RowData.Description.Text = Item.Description or "";
+            RowData.Description.Visible = Item.Description ~= nil and tostring(Item.Description) ~= "";
+            RowData.Name.Position = UDim2.new(0, 58, 0, RowData.Description.Visible and 5 or 0);
+            RowData.Name.Size = UDim2.new(1, -68, 0, RowData.Description.Visible and 18 or ItemHeight);
+
+            if not IsDragging or not DragMoved then
+                local Props = {
+                    Position = UDim2.new(0, 2, 0, YForIndex(Index)),
+                    Size = UDim2.new(1, -4, 0, IsDragging and DragHeight or ItemHeight),
+                };
+                if Animate then
+                    Tween(Row, TweenInfo.new(0.17, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), Props);
+                else
+                    Row.Position = Props.Position;
+                    Row.Size = Props.Size;
+                end;
+            end;
+
+            Row.ZIndex = IsDragging and 930 or 904;
+            for _, Child in ipairs(Row:GetDescendants()) do
+                if Child:IsA("GuiObject") then
+                    Child.ZIndex = IsDragging and 931 or 905;
+                end;
+            end;
+            RowData.Button.ZIndex = IsDragging and 932 or 906;
+
+            if not IsDragging then
+                StyleRow(Row, RowData.Stroke, Item, RowData.Hover, false, SelectedId == Item.Id);
+            end;
+        end;
+    end;
+
+    UserInputService.InputChanged:Connect(function(Input)
+        if Closed or not DraggingId or not DragStart then
+            return;
+        end;
+        if Input.UserInputType ~= Enum.UserInputType.MouseMovement and Input.UserInputType ~= Enum.UserInputType.Touch then
+            return;
+        end;
+
+        local RowData = Rows[DraggingId];
+        if not RowData then
+            return;
+        end;
+
+        local Distance = (Vector2.new(Input.Position.X, Input.Position.Y) - Vector2.new(DragStart.X, DragStart.Y)).Magnitude;
+        if Distance > 5 then
+            DragMoved = true;
+        end;
+
+        if DragMoved then
+            local NewY = Input.Position.Y - List.AbsolutePosition.Y + List.CanvasPosition.Y - DragOffsetY;
+            NewY = math.clamp(NewY, TopPadding, math.max(TopPadding, List.CanvasSize.Y.Offset - DragHeight));
+            RowData.Row.Position = UDim2.new(0, 2, 0, NewY);
+
+            local NewIndex = IndexFromMouseY(Input.Position.Y);
+            local OldIndex = GetIndexById(DraggingId);
+            if OldIndex and NewIndex ~= OldIndex then
+                MoveItem(OldIndex, NewIndex);
+                UpdateLayout(true);
+            end;
+        end;
+    end);
+
+    UserInputService.InputEnded:Connect(function(Input)
+        if Closed or not DraggingId then
+            return;
+        end;
+        if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+            local RowData = Rows[DraggingId];
+            if RowData then
+                local finder = table.find(Compkiller.DragBlacklist, RowData.Button);
+                if finder then
+                    table.remove(Compkiller.DragBlacklist, finder);
+                end;
+            end;
+            DraggingId = nil;
+            DragStart = nil;
+            UpdateLayout(true);
+        end;
+    end);
+
+    Close.MouseEnter:Connect(function()
+        Tween(Close, TweenInfo.new(0.13), {
+            BackgroundTransparency = 0.08,
+            TextColor3 = Compkiller.Colors.Highlight
+        });
+    end);
+
+    Close.MouseLeave:Connect(function()
+        Tween(Close, TweenInfo.new(0.13), {
+            BackgroundTransparency = 1,
+            TextColor3 = Compkiller.Colors.SwitchColor
+        });
+    end);
+
+    Done.MouseEnter:Connect(function()
+        Tween(Done, TweenInfo.new(0.13), {
+            BackgroundTransparency = 0.03
+        });
+        Tween(DoneStroke, TweenInfo.new(0.13), {
+            Transparency = 0.18
+        });
+    end);
+
+    Done.MouseLeave:Connect(function()
+        Tween(Done, TweenInfo.new(0.13), {
+            BackgroundTransparency = 0.12
+        });
+        Tween(DoneStroke, TweenInfo.new(0.13), {
+            Transparency = 0.38
+        });
+    end);
+
+    Close.MouseButton1Click:Connect(CloseModal);
+
+    Done.MouseButton1Click:Connect(function()
+        OnDone(CopyOrder());
+        CloseModal();
+    end);
+
+    Tween(Main, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = ModalSize
+    });
+
+    UpdateLayout(false);
+    FireChanged();
+
+    local ReturnApi = {
+        Frame = Main,
+        ScreenGui = Gui,
+        Close = CloseModal,
+        GetOrder = CopyOrder,
+        SetItems = function(_, NewItems, Silent)
+            Items = __SortableCopyItems(NewItems or {});
+            UpdateLayout(true);
+            if not Silent then
+                FireChanged();
+            end;
+        end,
+    };
+
+    return ReturnApi;
+end;
+
 
 return Compkiller;
