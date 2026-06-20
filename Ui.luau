@@ -4925,7 +4925,7 @@ function Compkiller.new(Config : Window)
 
 		local ContainerTab = Instance.new("Frame")
 		local MainFrame = Instance.new("Frame")
-		local Top = Instance.new("Frame")
+		local Top = Instance.new("ScrollingFrame")
 		local UIListLayout = Instance.new("UIListLayout")
 
 		ContainerTab.Name = "ContainerTab"
@@ -4951,17 +4951,37 @@ function Compkiller.new(Config : Window)
 
 		Top.Name = "Top"
 		Top.Parent = ContainerTab
+		Top.Active = true
 		Top.BackgroundTransparency = 1.000
 		Top.BorderColor3 = Color3.fromRGB(0, 0, 0)
 		Top.BorderSizePixel = 0
 		Top.Size = UDim2.new(1, 0, 0, 25)
 		Top.ZIndex = 7
+		Top.ClipsDescendants = true
+		Top.ScrollingDirection = Enum.ScrollingDirection.X
+		Top.CanvasSize = UDim2.new(0, 0, 0, 0)
+		Top.ScrollBarThickness = 2
+		Top.ScrollBarImageColor3 = Compkiller.Colors.Highlight
+
+		table.insert(Compkiller.Elements.Highlight,{
+			Element = Top,
+			Property = "ScrollBarImageColor3"
+		});
+
+		Top.BottomImage = ""
+		Top.TopImage = ""
 
 		UIListLayout.Parent = Top
 		UIListLayout.FillDirection = Enum.FillDirection.Horizontal
 		UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 		UIListLayout.Padding = UDim.new(0, 10)
+
+		UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
+			Top.CanvasSize = UDim2.fromOffset(UIListLayout.AbsoluteContentSize.X + 4, 0)
+		end)
+
+		Compkiller:_AddDragBlacklist(Top)
 
 		-- Functions --
 		Highlight:GetPropertyChangedSignal('BackgroundTransparency'):Connect(function()
@@ -7039,7 +7059,9 @@ function Compkiller.new(Config : Window)
 				end;
 			end);
 
-			return Compkiller:_LoadElement(Section , true , TabOpenSignal)
+			local SectionArgs = Compkiller:_LoadElement(Section , true , TabOpenSignal)
+			SectionArgs.__MainFrame = Section
+			return SectionArgs
 		end;
 
 		return TabArgs;
@@ -8056,6 +8078,7 @@ export type SortableListConfig = {
     Title: string,
     Items: {SortableListItem | string},
     Size: UDim2?,
+    Mode: string?,
     Flag: string?,
     AttachedTo: any?,
     OnClick: ((Item: SortableListItem, Index: number) -> any?)?,
@@ -8155,6 +8178,7 @@ function Compkiller:CreateSortableList(Config: SortableListConfig)
 
     local Items = __SortableCopyItems(Config.Items or {});
     local Flag = Config.Flag;
+    local Mode = string.lower(tostring(Config.Mode or "External"));
     local OnChanged = Config.OnChanged or function() end;
     local OnDone = Config.OnDone or function() end;
     local OnClick = Config.OnClick or function() end;
@@ -8181,6 +8205,7 @@ function Compkiller:CreateSortableList(Config: SortableListConfig)
     end;
 
     API.Flag = Flag;
+    API.Mode = Mode == "internal" and "Internal" or "External";
 
     function API:GetOrder()
         return CopyOrder();
@@ -8194,18 +8219,23 @@ function Compkiller:CreateSortableList(Config: SortableListConfig)
         ApplyValue(Value, false);
     end;
 
-    function API:Open()
-        if CurrentModal and CurrentModal.Close then
+    local function OpenList()
+        if CurrentModal and CurrentModal.Close and Mode ~= "internal" then
             pcall(function()
                 CurrentModal:Close();
             end);
             CurrentModal = nil;
         end;
 
+        if CurrentModal and Mode == "internal" then
+            return CurrentModal;
+        end;
+
         CurrentModal = Compkiller:OpenSortableList({
             Title = Config.Title,
             Items = Items,
             Size = Config.Size,
+            Mode = Config.Mode,
             AttachedTo = Config.AttachedTo,
             OnClick = function(Item, Index)
                 OnClick(Item, Index);
@@ -8220,7 +8250,15 @@ function Compkiller:CreateSortableList(Config: SortableListConfig)
             end,
         });
 
+        if CurrentModal then
+            API.Frame = CurrentModal.Frame;
+        end;
+
         return CurrentModal;
+    end;
+
+    function API:Open()
+        return OpenList();
     end;
 
     function API:SetItems(NewItems)
@@ -8231,6 +8269,10 @@ function Compkiller:CreateSortableList(Config: SortableListConfig)
         task.spawn(function()
             OnChanged(CopyOrder());
         end);
+    end;
+
+    if Mode == "internal" then
+        OpenList();
     end;
 
     if Flag then
@@ -8244,11 +8286,13 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
     Config = Config or {};
     local Title = Config.Title or "Sortable List";
     local RawItems = Config.Items or {};
-    local ModalSize = Config.Size or UDim2.new(0, 388, 0, 438);
+    local Mode = string.lower(tostring(Config.Mode or "External"));
+    local AttachFrame = __SortableGetAttachFrame(Config.AttachedTo);
+    local IsInternal = Mode == "internal" and AttachFrame ~= nil;
+    local ModalSize = Config.Size or (IsInternal and UDim2.new(1, -4, 0, 382) or UDim2.new(0, 388, 0, 438));
     local OnClick = Config.OnClick or function() end;
     local OnChanged = Config.OnChanged or function() end;
     local OnDone = Config.OnDone or function() end;
-    local AttachFrame = __SortableGetAttachFrame(Config.AttachedTo);
 
     local Items = __SortableCopyItems(RawItems);
 
@@ -8257,7 +8301,8 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
     end;
 
     local ExistingParent = AttachFrame or CoreGui;
-    local Existing = ExistingParent:FindFirstChild("CompkillerSortableModal");
+    local SortableRootName = IsInternal and "CompkillerSortableInternal" or "CompkillerSortableModal";
+    local Existing = ExistingParent:FindFirstChild(SortableRootName);
     if Existing then
         Existing:Destroy();
     end;
@@ -8279,8 +8324,9 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
     local Hint = Instance.new("TextLabel");
 
     if AttachFrame then
-        Main.Name = "CompkillerSortableModal";
+        Main.Name = SortableRootName;
         Main.Parent = AttachFrame;
+        Main.LayoutOrder = Config.LayoutOrder or 0;
     else
         Gui = Instance.new("ScreenGui");
         Gui.Name = "CompkillerSortableModal";
@@ -8293,13 +8339,13 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
         Main.Parent = Gui;
     end;
 
-    Main.AnchorPoint = AttachFrame and Vector2.new(0, 0.5) or Vector2.new(0.5, 0.5);
+    Main.AnchorPoint = IsInternal and Vector2.new(0.5, 0) or (AttachFrame and Vector2.new(0, 0.5) or Vector2.new(0.5, 0.5));
     Main.BackgroundColor3 = Compkiller.Colors.BGDBColor;
-    Main.BackgroundTransparency = 0.04;
+    Main.BackgroundTransparency = IsInternal and 0.18 or 0.04;
     Main.BorderSizePixel = 0;
-    Main.Position = AttachFrame and UDim2.new(1, 8, 0.5, 0) or UDim2.new(0.5, 0, 0.5, 0);
-    Main.Size = UDim2.new(0, ModalSize.X.Offset, 0, 0);
-    Main.ZIndex = 901;
+    Main.Position = IsInternal and UDim2.new(0.5, 0, 0, 0) or (AttachFrame and UDim2.new(1, 8, 0.5, 0) or UDim2.new(0.5, 0, 0.5, 0));
+    Main.Size = IsInternal and UDim2.new(1, -4, 0, 0) or UDim2.new(0, ModalSize.X.Offset, 0, 0);
+    Main.ZIndex = IsInternal and (AttachFrame.ZIndex + 1) or 901;
     Main.ClipsDescendants = true;
 
     table.insert(Compkiller.Elements.BGDBColor, {
@@ -8360,6 +8406,7 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
 
     CloseCorner.CornerRadius = UDim.new(0, 5);
     CloseCorner.Parent = Close;
+    Close.Visible = not IsInternal;
 
     Divider.Name = "Divider";
     Divider.Parent = Main;
@@ -8416,7 +8463,7 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
     Done.Position = UDim2.new(1, -12, 0.5, 0);
     Done.Size = UDim2.new(0, 94, 0, 29);
     Done.Font = Enum.Font.GothamBold;
-    Done.Text = "Done";
+    Done.Text = IsInternal and "Save" or "Done";
     Done.TextColor3 = Color3.fromRGB(0, 0, 0);
     Done.TextSize = 12;
     Done.ZIndex = 903;
@@ -8854,7 +8901,9 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
 
     Done.MouseButton1Click:Connect(function()
         OnDone(CopyOrder());
-        CloseModal();
+        if not IsInternal then
+            CloseModal();
+        end;
     end);
 
     Tween(Main, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
