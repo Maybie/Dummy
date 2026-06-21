@@ -10,12 +10,22 @@
 
 export type cloneref = (target: Instance) -> Instance;
 
+export type ToggleButton = {
+	Enabled: boolean?,
+	Mode: string?,
+	Draggable: boolean?,
+	Logo: string?,
+	Size: UDim2?,
+	Position: UDim2?
+};
+
 export type Window = {
 	Name: string,
 	Keybind: string | Enum.KeyCode,
 	Logo: string,
 	Scale: UDim2,
-	TextSize: number
+	TextSize: number,
+	ToggleButton: ToggleButton | boolean?
 };
 
 export type ConfigManager = {
@@ -327,7 +337,7 @@ local Mouse = LocalPlayer:GetMouse();
 local CurrentCamera = workspace.CurrentCamera;
 
 local Compkiller = {
-	Version = '1.4',
+	Version = '1.5',
 	Logo = "rbxassetid://120245531583106",
 	Windows = {},
 	Scale = {
@@ -908,7 +918,7 @@ function Compkiller:_AddLinkValue(Name , Default , GlobalBlock , LinkValues , re
 			Property = "Color"
 		})
 		
-		UICorner.CornerRadius = UDim.new(0, 3)
+		UICorner.CornerRadius = UDim.new(0, 8)
 		UICorner.Parent = ColorFrame
 
 		Signal:Connect(function(bool)
@@ -4360,6 +4370,40 @@ function Compkiller.new(Config : Window)
 		TextSize = 15
 	});
 
+	local ToggleButtonConfig = Config.ToggleButton;
+
+	if ToggleButtonConfig == false then
+		ToggleButtonConfig = {
+			Enabled = false
+		};
+	elseif typeof(ToggleButtonConfig) ~= "table" then
+		ToggleButtonConfig = {};
+	else
+		ToggleButtonConfig = table.clone(ToggleButtonConfig);
+	end;
+
+	if ToggleButtonConfig.Image and not ToggleButtonConfig.Logo then
+		ToggleButtonConfig.Logo = ToggleButtonConfig.Image;
+	end;
+
+	ToggleButtonConfig = Compkiller.__CONFIG(ToggleButtonConfig , {
+		Enabled = true,
+		Mode = "WhenClosed",
+		Draggable = true,
+		Size = UDim2.fromOffset(50, 50),
+		Position = UDim2.new(0, 10, 0, 10)
+	});
+
+	if typeof(ToggleButtonConfig.Size) == "number" then
+		ToggleButtonConfig.Size = UDim2.fromOffset(ToggleButtonConfig.Size, ToggleButtonConfig.Size);
+	end;
+
+	if ToggleButtonConfig.Mode ~= "Always" then
+		ToggleButtonConfig.Mode = "WhenClosed";
+	end;
+
+	Config.ToggleButton = ToggleButtonConfig;
+
 	local TabHover = Compkiller.__SIGNAL(false);
 	local WindowOpen = Compkiller.__SIGNAL(true);
 	local WindowArgs = {
@@ -4406,6 +4450,7 @@ function Compkiller.new(Config : Window)
 	CompKiller.ResetOnSpawn = false
 	CompKiller.IgnoreGuiInset = true;
 	CompKiller.ZIndexBehavior = Enum.ZIndexBehavior.Global;
+	CompKiller.DisplayOrder = 1000000;
 
 	table.insert(Compkiller.Windows , CompKiller);
 
@@ -7068,32 +7113,33 @@ function Compkiller.new(Config : Window)
 	end;
 
 	do
-		local CloseWindow = Instance.new("Frame")
+		local ToggleButtonFrame = Instance.new("Frame")
 		local UICorner = Instance.new("UICorner")
 		local ImageLabel = Instance.new("ImageLabel")
 
-		CloseWindow.Name = "CloseWindow"
-		CloseWindow.Parent = CompKiller
-		CloseWindow.AnchorPoint = Vector2.new(1, 0)
-		CloseWindow.BackgroundColor3 = Compkiller.Colors.BGDBColor
+		ToggleButtonFrame.Name = "ToggleButton"
+		ToggleButtonFrame.Parent = CompKiller
+		ToggleButtonFrame.AnchorPoint = Vector2.new(0, 0)
+		ToggleButtonFrame.BackgroundColor3 = Compkiller.Colors.BGDBColor
 		
 		table.insert(Compkiller.Elements.BGDBColor,{
-			Element = CloseWindow,
+			Element = ToggleButtonFrame,
 			Property = 'BackgroundColor3'
 		});
 		
-		CloseWindow.BackgroundTransparency = 1
-		CloseWindow.BorderColor3 = Color3.fromRGB(0, 0, 0)
-		CloseWindow.BorderSizePixel = 0
-		CloseWindow.Position = UDim2.new(1, -10, 0, 10)
-		CloseWindow.Size = UDim2.new(0, 0, 0, 23)
-		CloseWindow.ZIndex = 150
-		CloseWindow.ClipsDescendants = true;
+		ToggleButtonFrame.BackgroundTransparency = 1
+		ToggleButtonFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+		ToggleButtonFrame.BorderSizePixel = 0
+		ToggleButtonFrame.Position = ToggleButtonConfig.Position
+		ToggleButtonFrame.Size = UDim2.fromOffset(0, 0)
+		ToggleButtonFrame.ZIndex = 100000
+		ToggleButtonFrame.Visible = ToggleButtonConfig.Enabled
+		ToggleButtonFrame.ClipsDescendants = true;
 
-		UICorner.CornerRadius = UDim.new(0, 3)
-		UICorner.Parent = CloseWindow
+		UICorner.CornerRadius = UDim.new(0, 8)
+		UICorner.Parent = ToggleButtonFrame
 
-		ImageLabel.Parent = CloseWindow
+		ImageLabel.Parent = ToggleButtonFrame
 		ImageLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 		ImageLabel.BackgroundTransparency = 1.000
 		ImageLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
@@ -7101,19 +7147,21 @@ function Compkiller.new(Config : Window)
 		ImageLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
 		ImageLabel.Size = UDim2.new(0.800000012, 0, 0.800000012, 0)
 		ImageLabel.SizeConstraint = Enum.SizeConstraint.RelativeYY
-		ImageLabel.ZIndex = 151
-		ImageLabel.Image = Config.Logo
+		ImageLabel.ZIndex = 100001
+		ImageLabel.Image = ToggleButtonConfig.Logo or Config.Logo
 		ImageLabel.ImageTransparency = 1
 		ImageLabel.ClipsDescendants = false;
 
 		local ToggleCloseUI = function(v)
-			ImageLabel.Image = Config.Logo;
+			v = ToggleButtonConfig.Enabled and v;
+			ToggleButtonFrame.Visible = ToggleButtonConfig.Enabled;
+			ImageLabel.Image = ToggleButtonConfig.Logo or Config.Logo;
 
 			if v then
 				ImageLabel.ClipsDescendants = true;
 
-				Compkiller:_Animation(CloseWindow,TweenInfo.new(0.2),{
-					Size = UDim2.new(0, 45, 0, 23),
+				Compkiller:_Animation(ToggleButtonFrame,TweenInfo.new(0.2),{
+					Size = ToggleButtonConfig.Size,
 					BackgroundTransparency = 0.025
 				})
 
@@ -7123,8 +7171,8 @@ function Compkiller.new(Config : Window)
 			else
 				ImageLabel.ClipsDescendants = false;
 
-				Compkiller:_Animation(CloseWindow,TweenInfo.new(0.2),{
-					Size = UDim2.new(0, 0, 0, 23),
+				Compkiller:_Animation(ToggleButtonFrame,TweenInfo.new(0.2),{
+					Size = UDim2.fromOffset(0, 0),
 					BackgroundTransparency = 1
 				})
 
@@ -7161,17 +7209,6 @@ function Compkiller.new(Config : Window)
 			Watermark.Size = UDim2.new(0, 45, 0, 23)
 			Watermark.ZIndex = 150
 
-			ImageLabel:GetPropertyChangedSignal('ClipsDescendants'):Connect(function()
-				if ImageLabel.ClipsDescendants then
-					Compkiller:_Animation(Watermark , TweenInfo.new(0.2),{
-						Position = UDim2.new(1, -60, 0, 10)
-					})
-				else
-					Compkiller:_Animation(Watermark , TweenInfo.new(0.2),{
-						Position = UDim2.new(1, -10, 0, 10)
-					})
-				end;
-			end)
 
 			UICorner.CornerRadius = UDim.new(0, 3)
 			UICorner.Parent = Watermark
@@ -7350,44 +7387,25 @@ function Compkiller.new(Config : Window)
 			WindowArgs:Toggle(WindowArgs.IsOpen)
 		end;
 
-		local Button = Compkiller:_Input(CloseWindow,function()
+		local Button = Compkiller:_Input(ToggleButtonFrame,function()
 			WindowArgs:_ToggleUI()
 		end)
 
-		if not Compkiller:_IsMobile() then
-
-			Compkiller:_Hover(Button,function()
-				ImageLabel:SetAttribute("Hover",true);
-			end , function()
-				ImageLabel:SetAttribute("Hover",false);
-			end);
+		if ToggleButtonConfig.Draggable then
+			Compkiller:Drag(Button,ToggleButtonFrame,0.1);
 		end;
+
+		Compkiller:_Hover(Button,function()
+			ImageLabel:SetAttribute("Hover",true);
+		end , function()
+			ImageLabel:SetAttribute("Hover",false);
+		end);
 
 		table.insert(WindowArgs.THREADS,task.spawn(function()
 			while true do task.wait(0.15)
-				if Compkiller:_IsMobile() then
-					ToggleCloseUI(true);
+				local ShouldShowToggleButton = ToggleButtonConfig.Mode == "Always" or not WindowArgs.IsOpen;
 
-					if WindowArgs.IsOpen then
-						Compkiller:_Animation(ImageLabel,TweenInfo.new(0.2),{
-							ImageTransparency = 0.35
-						});
-
-						ImageLabel:GetAttribute("Hover",false);
-					else
-						ImageLabel:GetAttribute("Hover",true);
-
-						Compkiller:_Animation(ImageLabel,TweenInfo.new(0.2),{
-							ImageTransparency = 0.1
-						});
-					end;
-				else
-					if not WindowArgs.IsOpen then
-						ToggleCloseUI(true);
-					else
-						ToggleCloseUI(false);
-					end
-				end;
+				ToggleCloseUI(ShouldShowToggleButton);
 			end
 		end));
 
@@ -7775,6 +7793,7 @@ function Compkiller:Loader(IconId,Duration)
 	CompKiller.ResetOnSpawn = false
 	CompKiller.IgnoreGuiInset = true
 	CompKiller.ZIndexBehavior = Enum.ZIndexBehavior.Global
+	CompKiller.DisplayOrder = 1000000
 
 	local Loader = Instance.new("Frame")
 	local Icon = Instance.new("ImageLabel")
@@ -7879,6 +7898,7 @@ function Compkiller.newNotify()
 	Notification.Parent = CoreGui
 	Notification.ResetOnSpawn = false
 	Notification.ZIndexBehavior = Enum.ZIndexBehavior.Global
+	Notification.DisplayOrder = 1000000
 
 	NotifyContainer.Name = "NotifyContainer"
 	NotifyContainer.Parent = Notification
@@ -8333,6 +8353,7 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
         Gui.ResetOnSpawn = false;
         Gui.IgnoreGuiInset = true;
         Gui.ZIndexBehavior = Enum.ZIndexBehavior.Global;
+        Gui.DisplayOrder = 1000000;
         Gui.Parent = CoreGui;
 
         Main.Name = "Main";
