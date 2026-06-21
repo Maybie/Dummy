@@ -332,12 +332,23 @@ local RunService: RunService = cloneref(game:GetService('RunService'));
 local Players: Players = cloneref(game:GetService('Players'));
 local HttpService: HttpService = cloneref(game:GetService('HttpService'));
 local LocalPlayer: Player = Players.LocalPlayer;
-local CoreGui: PlayerGui = LocalPlayer.PlayerGui;
+local PlayerGui: PlayerGui = LocalPlayer:WaitForChild("PlayerGui");
+local CoreGui: Instance = cloneref(game:GetService('CoreGui'));
+
+local function __ParentScreenGui(ScreenGuiObject: ScreenGui)
+	local ok = pcall(function()
+		ScreenGuiObject.Parent = CoreGui;
+	end);
+
+	if not ok then
+		ScreenGuiObject.Parent = PlayerGui;
+	end;
+end;
 local Mouse = LocalPlayer:GetMouse();
 local CurrentCamera = workspace.CurrentCamera;
 
 local Compkiller = {
-	Version = '1.5',
+	Version = '1.5.1',
 	Logo = "rbxassetid://120245531583106",
 	Windows = {},
 	Scale = {
@@ -4446,11 +4457,11 @@ function Compkiller.new(Config : Window)
 	end);
 
 	CompKiller.Name = "u?name=compkiller_"..Compkiller:_RandomString();
-	CompKiller.Parent = CoreGui;
+	__ParentScreenGui(CompKiller);
 	CompKiller.ResetOnSpawn = false
 	CompKiller.IgnoreGuiInset = true;
 	CompKiller.ZIndexBehavior = Enum.ZIndexBehavior.Global;
-	CompKiller.DisplayOrder = 999999;
+	CompKiller.DisplayOrder = 1000000;
 
 	table.insert(Compkiller.Windows , CompKiller);
 
@@ -7788,12 +7799,12 @@ function Compkiller:Loader(IconId,Duration)
 	local CompKiller = Instance.new("ScreenGui")
 
 	CompKiller.Name = "Loader"
-	CompKiller.Parent = CoreGui
+	__ParentScreenGui(CompKiller)
 	CompKiller.Enabled = true
 	CompKiller.ResetOnSpawn = false
 	CompKiller.IgnoreGuiInset = true
 	CompKiller.ZIndexBehavior = Enum.ZIndexBehavior.Global
-	CompKiller.DisplayOrder = 999999
+	CompKiller.DisplayOrder = 1000000
 
 	local Loader = Instance.new("Frame")
 	local Icon = Instance.new("ImageLabel")
@@ -7895,10 +7906,10 @@ function Compkiller.newNotify()
 	local UIListLayout = Instance.new("UIListLayout")
 
 	Notification.Name = "Notification"
-	Notification.Parent = CoreGui
+	__ParentScreenGui(Notification)
 	Notification.ResetOnSpawn = false
 	Notification.ZIndexBehavior = Enum.ZIndexBehavior.Global
-	Notification.DisplayOrder = 999999
+	Notification.DisplayOrder = 1000000
 
 	NotifyContainer.Name = "NotifyContainer"
 	NotifyContainer.Parent = Notification
@@ -8353,8 +8364,8 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
         Gui.ResetOnSpawn = false;
         Gui.IgnoreGuiInset = true;
         Gui.ZIndexBehavior = Enum.ZIndexBehavior.Global;
-        Gui.DisplayOrder = 999999;
-        Gui.Parent = CoreGui;
+        Gui.DisplayOrder = 1000000;
+        __ParentScreenGui(Gui);
 
         Main.Name = "Main";
         Main.Parent = Gui;
