@@ -333,7 +333,22 @@ local Players: Players = cloneref(game:GetService('Players'));
 local HttpService: HttpService = cloneref(game:GetService('HttpService'));
 local LocalPlayer: Player = Players.LocalPlayer;
 local PlayerGui: PlayerGui = LocalPlayer:WaitForChild("PlayerGui");
-local CoreGui: Instance = cloneref(game:GetService('CoreGui'));
+local CoreGui = nil;
+
+pcall(function()
+	CoreGui = game:GetService('CoreGui');
+end);
+
+if CoreGui and typeof(cloneref) == "function" then
+	local ok, cloned = pcall(cloneref, CoreGui);
+	if ok and cloned then
+		CoreGui = cloned;
+	end;
+end;
+
+if not CoreGui then
+	CoreGui = PlayerGui;
+end;
 
 local function __ParentScreenGui(ScreenGuiObject: ScreenGui)
 	local ok = pcall(function()
@@ -348,7 +363,7 @@ local Mouse = LocalPlayer:GetMouse();
 local CurrentCamera = workspace.CurrentCamera;
 
 local Compkiller = {
-	Version = '1.5.1',
+	Version = '1.5.3',
 	Logo = "rbxassetid://120245531583106",
 	Windows = {},
 	Scale = {
@@ -2383,7 +2398,13 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		ToggleUI(false);
 
 		Element.MouseButton1Click:Connect(function()
-			ToggleUI(true);
+			ToggleUI(not Toggl);
+		end);
+
+		Window:GetAttributeChangedSignal("WindowOpen"):Connect(function()
+			if Window:GetAttribute("WindowOpen") == false then
+				ToggleUI(false);
+			end;
 		end);
 
 		UserInputService.InputBegan:Connect(function(Input)
@@ -2679,21 +2700,25 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	end;
 
 	BaseParent.MouseButton1Click:Connect(function()
-		if SpamUpdate then
+		local ShouldOpen = not ToggleDb:GetValue();
+
+		if ShouldOpen and SpamUpdate then
 			ClearDropdown();
 			UpdateDropdown();
 		end;
 
-		ToggleUI(true);
+		ToggleUI(ShouldOpen);
+	end);
 
-		if not ToggleDb:GetValue() then
+	Window:GetAttributeChangedSignal("WindowOpen"):Connect(function()
+		if Window:GetAttribute("WindowOpen") == false then
 			ToggleUI(false);
-		end
+		end;
 	end);
 
 	UserInputService.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-			if not Compkiller:_IsMouseOverFrame(DropdownWindow) then
+			if not Compkiller:_IsMouseOverFrame(DropdownWindow) and not Compkiller:_IsMouseOverFrame(BaseParent) then
 				ToggleUI(false);
 			end;
 		end;
@@ -4462,6 +4487,7 @@ function Compkiller.new(Config : Window)
 	CompKiller.IgnoreGuiInset = true;
 	CompKiller.ZIndexBehavior = Enum.ZIndexBehavior.Global;
 	CompKiller.DisplayOrder = 1000000;
+	CompKiller:SetAttribute("WindowOpen", true);
 
 	table.insert(Compkiller.Windows , CompKiller);
 
@@ -4681,6 +4707,8 @@ function Compkiller.new(Config : Window)
 	TabMainFrame.ZIndex = 5
 
 	WindowOpen:Connect(function(v)
+		CompKiller:SetAttribute("WindowOpen", v);
+
 		if v then
 			Compkiller:_Animation(MainFrame,TweenInfo.new(0.2),{
 				Size = Config.Scale
@@ -5016,7 +5044,7 @@ function Compkiller.new(Config : Window)
 		Top.ClipsDescendants = true
 		Top.ScrollingDirection = Enum.ScrollingDirection.X
 		Top.CanvasSize = UDim2.new(0, 0, 0, 0)
-		Top.ScrollBarThickness = 2
+		Top.ScrollBarThickness = 0
 		Top.ScrollBarImageColor3 = Compkiller.Colors.Highlight
 
 		table.insert(Compkiller.Elements.Highlight,{
@@ -7398,9 +7426,33 @@ function Compkiller.new(Config : Window)
 			WindowArgs:Toggle(WindowArgs.IsOpen)
 		end;
 
-		local Button = Compkiller:_Input(ToggleButtonFrame,function()
-			WindowArgs:_ToggleUI()
-		end)
+		local Button = Compkiller:_Input(ToggleButtonFrame)
+		local ToggleButtonDragging = false;
+		local ToggleButtonStartPosition = nil;
+
+		Button.InputBegan:Connect(function(Input)
+			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+				ToggleButtonDragging = false;
+				ToggleButtonStartPosition = Input.Position;
+			end;
+		end);
+
+		UserInputService.InputChanged:Connect(function(Input)
+			if ToggleButtonStartPosition and (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch) then
+				if (Input.Position - ToggleButtonStartPosition).Magnitude > 6 then
+					ToggleButtonDragging = true;
+				end;
+			end;
+		end);
+
+		Button.MouseButton1Click:Connect(function()
+			if not ToggleButtonDragging then
+				WindowArgs:_ToggleUI();
+			end;
+
+			ToggleButtonDragging = false;
+			ToggleButtonStartPosition = nil;
+		end);
 
 		if ToggleButtonConfig.Draggable then
 			Compkiller:Drag(Button,ToggleButtonFrame,0.1);
