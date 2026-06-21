@@ -4450,7 +4450,7 @@ function Compkiller.new(Config : Window)
 	CompKiller.ResetOnSpawn = false
 	CompKiller.IgnoreGuiInset = true;
 	CompKiller.ZIndexBehavior = Enum.ZIndexBehavior.Global;
-	CompKiller.DisplayOrder = 1000000;
+	CompKiller.DisplayOrder = 999999;
 
 	table.insert(Compkiller.Windows , CompKiller);
 
@@ -7793,7 +7793,7 @@ function Compkiller:Loader(IconId,Duration)
 	CompKiller.ResetOnSpawn = false
 	CompKiller.IgnoreGuiInset = true
 	CompKiller.ZIndexBehavior = Enum.ZIndexBehavior.Global
-	CompKiller.DisplayOrder = 1000000
+	CompKiller.DisplayOrder = 999999
 
 	local Loader = Instance.new("Frame")
 	local Icon = Instance.new("ImageLabel")
@@ -7898,7 +7898,7 @@ function Compkiller.newNotify()
 	Notification.Parent = CoreGui
 	Notification.ResetOnSpawn = false
 	Notification.ZIndexBehavior = Enum.ZIndexBehavior.Global
-	Notification.DisplayOrder = 1000000
+	Notification.DisplayOrder = 999999
 
 	NotifyContainer.Name = "NotifyContainer"
 	NotifyContainer.Parent = Notification
@@ -8353,7 +8353,7 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
         Gui.ResetOnSpawn = false;
         Gui.IgnoreGuiInset = true;
         Gui.ZIndexBehavior = Enum.ZIndexBehavior.Global;
-        Gui.DisplayOrder = 1000000;
+        Gui.DisplayOrder = 999999;
         Gui.Parent = CoreGui;
 
         Main.Name = "Main";
