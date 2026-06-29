@@ -1,0 +1,312 @@
+{
+  "schemaVersion": 1,
+  "source": "manual",
+  "gameId": "anime-astral",
+  "gameName": "Anime Astral",
+  "latest": "Update 5.1",
+  "updatedBy": "Leo",
+  "updates": [
+    {
+      "version": "Update 5.1",
+      "title": "Summer Core & Sword Polish",
+      "date": "2026-06-28",
+      "sections": [
+        {
+          "label": "+ FEATURES",
+          "items": [
+            "Added Summer Merchant support",
+            "Added Dynamic Potion Manager support",
+            "Added Summer Potions support",
+            "Added Defense support to Potion Manager",
+            "Added Sword Roll multi-select",
+            "Added Refill At Tokens setting for Sword Roll",
+            "Added dynamic Merchant support for new and future merchants"
+          ]
+        },
+        {
+          "label": "- IMPROVEMENTS",
+          "items": [
+            "Potion dropdown is now organized by stat and multiplier",
+            "Potion order is now cleaner: I, II, Summer",
+            "Defense can now use Potion Rules properly",
+            "Sword Passive was moved into its own tab",
+            "Summer Merchant items are now supported in Auto Buy"
+          ]
+        },
+        {
+          "label": "- FIXES",
+          "items": [
+            "Fixed new Summer Potions not appearing in Potion Manager",
+            "Fixed Potion Manager missing proper Defense activity support",
+            "Fixed Sword Roll only supporting one selected Sword Gacha",
+            "Fixed Summer Merchant not being available in the Shop system",
+            "Fixed some potion names appearing",
+            "Removed Auto Claim All Codes",
+            "Internal cleanup and improvements"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "Update 5",
+      "title": "Activity Adoption & Trial Stability",
+      "date": "2026-06-27",
+      "sections": [
+        {
+          "label": "+ FEATURES",
+          "items": [
+            "Added activity adoption system for Raid, Gate, Defense and Trial",
+            "Added Trial adoption when Auto Trial is re-enabled inside an active Trial",
+            "Added Raid adoption when Auto Raid is re-enabled inside an active Raid",
+            "Added Gate adoption when Auto Gate is re-enabled inside an active Gate",
+            "Added Defense adoption when Auto Defense is re-enabled inside an active Defense",
+            "Added manual observing mode for active activities",
+            "Added Trial window consume system",
+            "Auto Trial now remembers completed/left Trials during the same entry window",
+            "Added faster activity resume after Raid, Gate, Trial and Defense transitions",
+            "Added responsive priority switching after activity completion"
+          ]
+        },
+        {
+          "label": "- IMPROVEMENTS",
+          "items": [
+            "Restored Trial movement inside active Time Trial",
+            "Auto Trial now properly moves to Trial mobs during rooms",
+            "Auto Trial no longer relies only on Click to hit nearby enemies",
+            "Improved Trial Auto Leave behavior",
+            "Improved Trial priority flow after Auto Leave",
+            "Auto Trial no longer re-enters the same Trial repeatedly while the portal is still open",
+            "Disabling Auto Trial inside a Trial now switches to manual observing instead of leaving",
+            "Re-enabling Auto Trial inside a selected Trial now adopts and continues it",
+            "Disabling Auto Raid inside a Raid now switches to manual observing instead of forcing exit",
+            "Re-enabling Auto Raid inside a selected Raid now adopts and continues it",
+            "Disabling Auto Gate inside a Gate now switches to manual observing instead of forcing exit",
+            "Re-enabling Auto Gate inside a selected Gate now adopts and continues it",
+            "Disabling Auto Defense inside a Defense now switches to manual observing instead of forcing exit",
+            "Re-enabling Auto Defense inside a selected Defense now adopts and continues it",
+            "Improved Gate entry flow before entering Gate",
+            "Gate now attempts to move to the correct world before entering",
+            "Reduced transition delays after Raid, Gate, Trial and Defense",
+            "Reduced scheduler delay for faster activity switching",
+            "Reduced Trial join retry delay",
+            "Reduced Trial world request delay",
+            "Reduced Raid and Defense start cooldowns",
+            "Improved responsiveness when moving from Trial to Clover, Raid, Gate or Crow",
+            "Improved responsiveness when chaining multiple Raid runs",
+            "Improved activity owner handling between hub-controlled and manual activities",
+            "Improved selected activity handling while already inside Raid, Gate, Defense or Trial"
+          ]
+        },
+        {
+          "label": "- FIXES",
+          "items": [
+            "Fixed Trial entering and stopping at room 1",
+            "Fixed Trial movement not running after the Auto Leave rework",
+            "Fixed Trial branch returning before calling MovementService step",
+            "Fixed Auto Leave Trial leaving correctly but immediately re-entering during the same open window",
+            "Fixed Auto Trial repeatedly leaving and re-entering until the Trial portal closed",
+            "Fixed Auto Trial toggle off calling leave when it should only stop controlling",
+            "Fixed Trial Auto Leave potentially affecting manual Trial ownership",
+            "Fixed Trial leave request trying to take ownership of manual Trials",
+            "Fixed Trial movement not clearing correctly when switching to manual observing",
+            "Fixed selected Trial changes not properly adopting or unadopting the current Trial",
+            "Fixed Gate showing Entering but not moving to the Gate world first",
+            "Fixed Gate requiring manual world change before entry could continue",
+            "Fixed excessive delay after leaving Raid before starting the next priority activity",
+            "Fixed excessive delay after Trial before returning to Clover, Raid, Gate or Crow",
+            "Fixed excessive delay between repeated Raid runs",
+            "Fixed activity transitions staying too long in Returning or hold states",
+            "Fixed pending Trial leave cleanup in manual and adoption flows",
+            "Fixed several owner and manual observing edge cases for Raid, Gate, Trial and Defense",
+            "Internal activity stability improvements"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "Update 4.5",
+      "title": "Time Trial Medium Support",
+      "date": "2026-06-26",
+      "sections": [
+        {
+          "label": "+ FEATURES",
+          "items": [
+            "Added Time Trial Medium support",
+            "Auto Trial now supports multiple Trial selections",
+            "Added multi-select dropdown for Auto Trial",
+            "Auto Trial now supports Easy and Medium together",
+            "Added Time Trial Medium support to Priority",
+            "Added Time Trial Medium support to Auto Leave"
+          ]
+        },
+        {
+          "label": "- IMPROVEMENTS",
+          "items": [
+            "Improved Auto Trial detection",
+            "Auto Trial can now detect which Trial is currently open",
+            "Improved Trial scheduling",
+            "Improved Trial priority handling",
+            "Improved Defense stability",
+            "Improved Defense priority detection"
+          ]
+        },
+        {
+          "label": "- FIXES",
+          "items": [
+            "Fixed Auto Trial only supporting one Trial at a time",
+            "Fixed Trial detection for the new Time Trial system",
+            "Fixed Defense context detection",
+            "Fixed Defense activity recognition in Priority",
+            "Internal cleanup and stability improvements"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "Update 4",
+      "title": "Defense & World Gacha Scheduler",
+      "date": "2026-06-22",
+      "sections": [
+        {
+          "label": "+ FEATURES",
+          "items": [
+            "Added Raids > Defense tab",
+            "Added Titan Wall Defense support",
+            "Added Auto Defense",
+            "Added Defense selection",
+            "Added Defense state/status",
+            "Added Defense run count",
+            "Added Defense minimum keys",
+            "Added Defense Auto Leave",
+            "Added Defense support to Priority",
+            "Added Defense support to Loadout rules",
+            "Added Defense support to Potion Manager",
+            "Added Auto Attack support for Titan Wall Defense",
+            "Added World Gacha Settings",
+            "Added Wait For Tokens for World Gacha",
+            "Added Token Amount setting for World Gacha",
+            "Added Refill At Tokens setting for World Gacha"
+          ]
+        },
+        {
+          "label": "- IMPROVEMENTS",
+          "items": [
+            "Improved Auto Raid",
+            "Improved Raid/Gate/Defense stability",
+            "Improved Time Trial",
+            "Improved Auto Attack",
+            "Improved World Gacha",
+            "World Gacha can now skip gachas with low tokens and resume them later",
+            "World Gacha can now switch back to higher priority gachas when enough tokens are reached",
+            "FPS Cap now starts enabled by default",
+            "FPS Cap Unfocused now starts enabled by default"
+          ]
+        },
+        {
+          "label": "- FIXES",
+          "items": [
+            "Fixed World Gacha, Sword Passive and Grimoire targets not showing correctly",
+            "Fixed Auto Leave",
+            "Fixed stuck raid issue",
+            "Fixed Raid/Gate list sometimes not loading correctly",
+            "Fixed World Gacha token wait showing wrong refill value",
+            "Removed old teleport-back system",
+            "Crow now collects Crow immediately when found",
+            "Code optimizations and internal cleanup"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "Update 3",
+      "title": "Auto Detect World & Performance Tools",
+      "date": "2026-06-21",
+      "sections": [
+        {
+          "label": "+ FEATURES",
+          "items": [
+            "Added Auto Detect World for Auto Star",
+            "Added Multi-Select support to \"Roll Until Target\" for World Gacha",
+            "Added Multi-Select support to \"Roll Until Target\" for Sword Passive",
+            "Added Multi-Select support to \"Roll Until Target\" for Grimoires",
+            "Added Disable Render",
+            "Added Black Screen option for Disable Render",
+            "Added FPS Cap",
+            "Added FPS Cap Unfocused",
+            "Added Copy Discord Server button"
+          ]
+        },
+        {
+          "label": "- IMPROVEMENTS & FIXES",
+          "items": [
+            "Fixed Farm NPC showing World 7 as Clover Island",
+            "Fixed default world values still showing World 6",
+            "Fixed Clover Merchant Auto Buy",
+            "Improved Auto Star status",
+            "Improved Grimoire UI layout",
+            "Improved UI Open Button",
+            "Improved UI layering",
+            "Improved script stability",
+            "Code optimizations and internal cleanup"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "Update 2",
+      "title": "Grimoire & Clover Shop",
+      "date": "2026-06-20",
+      "sections": [
+        {
+          "label": "+ FEATURES",
+          "items": [
+            "Added Grimoire System",
+            "Added Grimoire Target",
+            "Added Grimoire Focus Order",
+            "Added Grimoire Slot Selection",
+            "Added Clover Shop",
+            "Added New Codes"
+          ]
+        },
+        {
+          "label": "- IMPROVEMENTS & FIXES",
+          "items": [
+            "Improved Auto Raid Priority",
+            "Improved Raid Transition Detection"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "Update 1",
+      "title": "Core UI & Target Systems",
+      "date": "2026-06-20",
+      "sections": [
+        {
+          "label": "+ FEATURES",
+          "items": [
+            "Added Priority Internal Sortable",
+            "Added UI Sub-Tab Scroll",
+            "Added Multi World Gacha Target",
+            "Added Gacha Focus Order",
+            "Added Player Passive Target",
+            "Added Sword Passive Target",
+            "Added Loadout Support for Farm, Main Quest and Side Quest",
+            "Added Potion Rules for Farm, Main Quest and Side Quest",
+            "Added Dummy Logo"
+          ]
+        },
+        {
+          "label": "- IMPROVEMENTS & FIXES",
+          "items": [
+            "Improved Potion Manager UI",
+            "Improved Auto Farm UI Names",
+            "Improved Gacha Target Detection",
+            "Improved Player Passive Detection",
+            "Improved Sword Passive Detection"
+          ]
+        }
+      ]
+    }
+  ]
+}
