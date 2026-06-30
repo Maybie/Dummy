@@ -6691,6 +6691,11 @@ function Compkiller.new(Config : Window)
 				end;
 			end;
 
+			TabArgs.Refresh = Refresh;
+			TabArgs.RefreshConfigs = Refresh;
+			Init.Refresh = Refresh;
+			Init.RefreshConfigs = Refresh;
+
 			Refresh();
 
 			task.defer(function()
