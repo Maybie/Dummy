@@ -1694,7 +1694,7 @@ function Compkiller:_CreateBlock(Signal)
 	LinkValues.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	LinkValues.BorderSizePixel = 0
 	LinkValues.Position = UDim2.new(1, -12, 0.5, 0)
-	LinkValues.Size = UDim2.new(1, 0, 0, 18)
+	LinkValues.Size = UDim2.new(0, 238, 0, 18)
 	LinkValues.ZIndex = 11
 
 	UIListLayout.Parent = LinkValues
@@ -4395,7 +4395,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		LinkValues.BorderColor3 = Color3.fromRGB(0, 0, 0)
 		LinkValues.BorderSizePixel = 0
 		LinkValues.Position = UDim2.new(1, -12, 0, 15)
-		LinkValues.Size = UDim2.new(1, 0, 0, 18)
+		LinkValues.Size = UDim2.new(0, 222, 0, 30)
 		LinkValues.ZIndex = Zindex + 3
 
 		UIListLayout.Parent = LinkValues
@@ -5049,7 +5049,7 @@ function Compkiller.new(Config : Window)
 	UIListLayout.Parent = TabButtonScrollingFrame
 	UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	UIListLayout.Padding = UDim.new(0, 4)
+	UIListLayout.Padding = UDim.new(0, 6)
 
 	Userinfo.Name = "Userinfo"
 	Userinfo.Parent = TabFrame
@@ -6527,8 +6527,8 @@ function Compkiller.new(Config : Window)
 			DelButton.BackgroundTransparency = 1.000
 			DelButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			DelButton.BorderSizePixel = 0
-			DelButton.LayoutOrder = -9999
-			DelButton.Size = UDim2.new(0, 24, 0, 16)
+			DelButton.LayoutOrder = 0
+			DelButton.Size = UDim2.new(0, 14, 0, 14)
 			DelButton.ZIndex = 14
 			DelButton.Image = "rbxassetid://10747362393"
 			DelButton.ImageColor3 = Color3.fromRGB(255, 107, 107)
@@ -6568,7 +6568,7 @@ function Compkiller.new(Config : Window)
 				Property = 'TextColor3'
 			});
 			
-			UIGradient.Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0.00, 0.00), NumberSequenceKeypoint.new(0.29, 0.00), NumberSequenceKeypoint.new(0.33, 1.00), NumberSequenceKeypoint.new(1.00, 1.00)}
+			UIGradient.Transparency = NumberSequence.new(0)
 			UIGradient.Parent = ConfigText
 
 			LinkValues.Name = "LinkValues"
@@ -6578,7 +6578,7 @@ function Compkiller.new(Config : Window)
 			LinkValues.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			LinkValues.BorderSizePixel = 0
 			LinkValues.Position = UDim2.new(1, -12, 0.5, 15)
-			LinkValues.Size = UDim2.new(1, 0, 0, 18)
+			LinkValues.Size = UDim2.new(0, 222, 0, 30)
 			LinkValues.ZIndex = 11
 
 			UIListLayout.Parent = LinkValues
@@ -6593,7 +6593,8 @@ function Compkiller.new(Config : Window)
 			SaveButton.BackgroundTransparency = 1.000
 			SaveButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			SaveButton.BorderSizePixel = 0
-			SaveButton.Size = UDim2.new(0, 77, 0, 30)
+			SaveButton.LayoutOrder = 1
+			SaveButton.Size = UDim2.new(0, 58, 0, 28)
 			SaveButton.ZIndex = 14
 
 			Frame.Parent = SaveButton
@@ -6603,7 +6604,7 @@ function Compkiller.new(Config : Window)
 			Frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			Frame.BorderSizePixel = 0
 			Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
-			Frame.Size = UDim2.new(1, -15, 1, -5)
+			Frame.Size = UDim2.new(1, -4, 1, -5)
 			Frame.ZIndex = 14
 
 			table.insert(Compkiller.Elements.Highlight,{
@@ -6624,12 +6625,12 @@ function Compkiller.new(Config : Window)
 			UICorner.Parent = Frame
 
 			TextLabel.Parent = Frame
-			TextLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+			TextLabel.AnchorPoint = Vector2.new(0, 0.5)
 			TextLabel.BackgroundTransparency = 1.000
 			TextLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			TextLabel.BorderSizePixel = 0
-			TextLabel.Position = UDim2.new(0.5, 27, 0.5, 0)
-			TextLabel.Size = UDim2.new(1, 0, 1, 0)
+			TextLabel.Position = UDim2.new(0, 24, 0.5, 0)
+			TextLabel.Size = UDim2.new(1, -27, 1, 0)
 			TextLabel.ZIndex = 14
 			TextLabel.Font = Enum.Font.GothamMedium
 			TextLabel.Text = "Save"
@@ -6650,8 +6651,8 @@ function Compkiller.new(Config : Window)
 			Icon.BackgroundTransparency = 1.000
 			Icon.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			Icon.BorderSizePixel = 0
-			Icon.Position = UDim2.new(0, 5, 0.5, 0)
-			Icon.Size = UDim2.new(0.699999988, 0, 0.699999988, 0)
+			Icon.Position = UDim2.new(0, 7, 0.5, 0)
+			Icon.Size = UDim2.new(0, 14, 0, 14)
 			Icon.SizeConstraint = Enum.SizeConstraint.RelativeYY
 			Icon.ZIndex = 15
 			Icon.Image = "rbxassetid://10734941499"
@@ -6662,7 +6663,8 @@ function Compkiller.new(Config : Window)
 			LoadButton.BackgroundTransparency = 1.000
 			LoadButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			LoadButton.BorderSizePixel = 0
-			LoadButton.Size = UDim2.new(0, 77, 0, 30)
+			LoadButton.LayoutOrder = 2
+			LoadButton.Size = UDim2.new(0, 58, 0, 28)
 			LoadButton.ZIndex = 14
 
 			Frame_2.Parent = LoadButton
@@ -6672,7 +6674,7 @@ function Compkiller.new(Config : Window)
 			Frame_2.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			Frame_2.BorderSizePixel = 0
 			Frame_2.Position = UDim2.new(0.5, 0, 0.5, 0)
-			Frame_2.Size = UDim2.new(1, -15, 1, -5)
+			Frame_2.Size = UDim2.new(1, -4, 1, -5)
 			Frame_2.ZIndex = 14
 
 			table.insert(Compkiller.Elements.Highlight,{
@@ -6693,12 +6695,12 @@ function Compkiller.new(Config : Window)
 			UICorner_2.Parent = Frame_2
 
 			TextLabel_2.Parent = Frame_2
-			TextLabel_2.AnchorPoint = Vector2.new(0.5, 0.5)
+			TextLabel_2.AnchorPoint = Vector2.new(0, 0.5)
 			TextLabel_2.BackgroundTransparency = 1.000
 			TextLabel_2.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			TextLabel_2.BorderSizePixel = 0
-			TextLabel_2.Position = UDim2.new(0.5, 27, 0.5, 0)
-			TextLabel_2.Size = UDim2.new(1, 0, 1, 0)
+			TextLabel_2.Position = UDim2.new(0, 24, 0.5, 0)
+			TextLabel_2.Size = UDim2.new(1, -27, 1, 0)
 			TextLabel_2.ZIndex = 14
 			TextLabel_2.Font = Enum.Font.GothamMedium
 			TextLabel_2.Text = "Load"
@@ -6719,8 +6721,8 @@ function Compkiller.new(Config : Window)
 			Icon_2.BackgroundTransparency = 1.000
 			Icon_2.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			Icon_2.BorderSizePixel = 0
-			Icon_2.Position = UDim2.new(0, 5, 0.5, 0)
-			Icon_2.Size = UDim2.new(0.699999988, 0, 0.699999988, 0)
+			Icon_2.Position = UDim2.new(0, 7, 0.5, 0)
+			Icon_2.Size = UDim2.new(0, 14, 0, 14)
 			Icon_2.SizeConstraint = Enum.SizeConstraint.RelativeYY
 			Icon_2.ZIndex = 15
 			Icon_2.Image = "rbxassetid://10723344270"
@@ -6731,7 +6733,8 @@ function Compkiller.new(Config : Window)
 			AutoButton.BackgroundTransparency = 1.000
 			AutoButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			AutoButton.BorderSizePixel = 0
-			AutoButton.Size = UDim2.new(0, 96, 0, 30)
+			AutoButton.LayoutOrder = 3
+			AutoButton.Size = UDim2.new(0, 80, 0, 28)
 			AutoButton.ZIndex = 14
 
 			Frame_3.Parent = AutoButton
@@ -6741,7 +6744,7 @@ function Compkiller.new(Config : Window)
 			Frame_3.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			Frame_3.BorderSizePixel = 0
 			Frame_3.Position = UDim2.new(0.5, 0, 0.5, 0)
-			Frame_3.Size = UDim2.new(1, -15, 1, -5)
+			Frame_3.Size = UDim2.new(1, -4, 1, -5)
 			Frame_3.ZIndex = 14
 
 			table.insert(Compkiller.Elements.Highlight,{
@@ -6766,9 +6769,9 @@ function Compkiller.new(Config : Window)
 			TextLabel_3.BackgroundTransparency = 1.000
 			TextLabel_3.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			TextLabel_3.BorderSizePixel = 0
-			TextLabel_3.Position = UDim2.new(0, 29, 0.5, 0)
+			TextLabel_3.Position = UDim2.new(0, 24, 0.5, 0)
 
-			TextLabel_3.Size = UDim2.new(1, -34, 1, 0)
+			TextLabel_3.Size = UDim2.new(1, -26, 1, 0)
 			TextLabel_3.ZIndex = 14
 			TextLabel_3.Font = Enum.Font.GothamMedium
 			TextLabel_3.Text = "Auto"
@@ -6789,8 +6792,8 @@ function Compkiller.new(Config : Window)
 			Icon_3.BackgroundTransparency = 1.000
 			Icon_3.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			Icon_3.BorderSizePixel = 0
-			Icon_3.Position = UDim2.new(0, 5, 0.5, 0)
-			Icon_3.Size = UDim2.new(0.699999988, 0, 0.699999988, 0)
+			Icon_3.Position = UDim2.new(0, 6, 0.5, 0)
+			Icon_3.Size = UDim2.new(0, 14, 0, 14)
 			Icon_3.SizeConstraint = Enum.SizeConstraint.RelativeYY
 			Icon_3.ZIndex = 15
 			Icon_3.Image = "rbxassetid://10734950309"
@@ -6814,14 +6817,14 @@ function Compkiller.new(Config : Window)
 			AuthorText.BackgroundTransparency = 1.000
 			AuthorText.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			AuthorText.BorderSizePixel = 0
-			AuthorText.Position = UDim2.new(0.5, -65, 0.5, 15)
-			AuthorText.Size = UDim2.new(1, -360, 0, 25)
+			AuthorText.Position = UDim2.new(0, 92, 0.5, 15)
+			AuthorText.Size = UDim2.new(1, -342, 0, 25)
 			AuthorText.ZIndex = 10
 			AuthorText.Font = Enum.Font.GothamMedium
 			AuthorText.RichText = true;
 			AuthorText.Text = "Author: <font color=\"rgb(17, 238, 253)\">NoFi</font>"
 			AuthorText.TextColor3 = Compkiller.Colors.SwitchColor
-			AuthorText.TextSize = 13.000
+			AuthorText.TextSize = 12.000
 			AuthorText.TextTransparency = 1
 			AuthorText.TextXAlignment = Enum.TextXAlignment.Left
 			AuthorText.TextTruncate = Enum.TextTruncate.AtEnd
@@ -6833,13 +6836,12 @@ function Compkiller.new(Config : Window)
 			
 			function ConfigButton:SetInfo(Author , ConfigName)
 				local R,G,B = tostring(math.floor(Compkiller.Colors.Highlight.R * 255)) , tostring(math.floor(Compkiller.Colors.Highlight.G * 255)) , tostring(math.floor(Compkiller.Colors.Highlight.B * 255));
+				local SafeAuthor = tostring(Author or ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;");
 
-				AuthorText.Text = string.format("Author: <font color=\"rgb(%s, %s, %s)\">%s</font>" ,R,G,B , tostring(Author));
-				ConfigText.Text = ConfigName;
+				AuthorText.Text = string.format("Author: <font color=\"rgb(%s, %s, %s)\">%s</font>" ,R,G,B , SafeAuthor);
+				ConfigText.Text = tostring(ConfigName or "Config");
 
-				if ConfigBlock.BackgroundTransparency >= 0.7 then
-					ConfigButton:Update();
-				end;
+				ConfigButton:Update();
 			end;
 
 			function ConfigButton:SetAutoLoad(Enabled)
@@ -6921,7 +6923,7 @@ function Compkiller.new(Config : Window)
 				else
 					Compkiller:_Animation(AuthorText,Tween,{
 						TextTransparency = 1,
-						Position = UDim2.new(0.5, -65, 0.5, 15)
+						Position = UDim2.new(0, AuthorText:GetAttribute('SPC') or 92, 0.5, 15)
 					});
 
 					Compkiller:_Animation(Icon_2,Tween,{
@@ -6991,17 +6993,30 @@ function Compkiller.new(Config : Window)
 			end;
 
 			function ConfigButton:Update()
-				local nameScale = TextService:GetTextSize(ConfigText.Text,ConfigText.TextSize,ConfigText.Font,Vector2.new(math.huge,math.huge));
+				local nameScale = TextService:GetTextSize(tostring(ConfigText.Text or ""), ConfigText.TextSize, ConfigText.Font, Vector2.new(math.huge, math.huge));
+				local blockWidth = math.max(ConfigBlock.AbsoluteSize.X, 430);
+				local buttonsWidth = math.max(LinkValues.AbsoluteSize.X, 222);
+				local rightPadding = 12;
+				local gapBeforeButtons = 6;
+				local nameLeft = 12;
+				local authorStart = math.clamp(nameLeft + nameScale.X + 18, 94, 126);
+				local authorEnd = blockWidth - buttonsWidth - rightPadding - gapBeforeButtons;
+				local authorWidth = math.max(0, authorEnd - authorStart);
+				local nameWidth = math.max(66, authorStart - nameLeft - 10);
 
-				local authorStart = math.clamp(nameScale.X + 24 , 110, 170);
-				local reservedRight = 285;
-
+				ConfigText.Size = UDim2.new(0, nameWidth, 0, 25);
+				ConfigText.TextTruncate = Enum.TextTruncate.AtEnd;
 				AuthorText:SetAttribute('SPC', authorStart);
 				AuthorText.Position = UDim2.new(0, authorStart, 0.5, 15);
-				AuthorText.Size = UDim2.new(1, -(authorStart + reservedRight), 0, 25);
+				AuthorText.Size = UDim2.new(0, authorWidth, 0, 25);
+				AuthorText.Visible = authorWidth >= 72;
 			end;
 
 			ConfigButton:Update();
+
+			ConfigBlock:GetPropertyChangedSignal('AbsoluteSize'):Connect(function()
+				ConfigButton:Update();
+			end);
 
 			Compkiller:_Input(LoadButton,function()
 				task.spawn(ConfigButton.OnLoad);
