@@ -366,7 +366,7 @@ local Mouse = LocalPlayer:GetMouse();
 local CurrentCamera = workspace.CurrentCamera;
 
 local Compkiller = {
-	Version = '1.5.3',
+	Version = '1.5.4-webmirror',
 	Logo = "rbxassetid://120245531583106",
 	Windows = {},
 	Scale = {
@@ -411,6 +411,386 @@ Compkiller.Elements = {
 
 Compkiller.DragBlacklist = {};
 Compkiller.Flags = {};
+
+Compkiller.WebMirror = {
+	Enabled = true,
+	Controls = {},
+	Order = {},
+	ConfigManagers = {},
+	ConfigOrder = {},
+	ChangedAt = 0,
+};
+
+function Compkiller:_WebKey(Value)
+	local Text = tostring(Value or "")
+	Text = Text:gsub("^%s+", ""):gsub("%s+$", "")
+	Text = Text:gsub("[^%w_%-%.]+", "_")
+	Text = Text:gsub("_+", "_")
+	if Text == "" then
+		Text = "item"
+	end
+	return Text
+end
+
+function Compkiller:_WebTouch()
+	if Compkiller.WebMirror then
+		Compkiller.WebMirror.ChangedAt = os.clock()
+	end
+end
+
+function Compkiller:_WebCopyList(Value)
+	local Out = {}
+	if type(Value) == "table" then
+		for i,v in next, Value do
+			if type(i) == "number" then
+				table.insert(Out, v)
+			elseif v == true then
+				table.insert(Out, i)
+			end
+		end
+	end
+	return Out
+end
+
+function Compkiller:_WebSafeValue(Value)
+	if typeof(Value) == "Color3" then
+		return "#" .. Value:ToHex()
+	elseif typeof(Value) == "EnumItem" then
+		return Value.Name
+	elseif type(Value) == "table" then
+		local Out = {}
+		for i,v in next, Value do
+			if typeof(v) == "Color3" then
+				Out[i] = "#" .. v:ToHex()
+			elseif typeof(v) == "EnumItem" then
+				Out[i] = v.Name
+			elseif type(v) == "table" then
+				Out[i] = Compkiller:_WebSafeValue(v)
+			elseif type(v) ~= "function" and typeof(v) ~= "Instance" then
+				Out[i] = v
+			end
+		end
+		return Out
+	elseif type(Value) == "function" or typeof(Value) == "Instance" then
+		return nil
+	end
+	return Value
+end
+
+function Compkiller:_WebReadControl(Item)
+	if not Item then return nil end
+	local Object = Item.Object
+	if Object and type(Object.GetValue) == "function" then
+		local ok, Value = pcall(function()
+			return Object:GetValue()
+		end)
+		if ok then
+			return Compkiller:_WebSafeValue(Value)
+		end
+	end
+	return Compkiller:_WebSafeValue(Item.Value)
+end
+
+function Compkiller:_WebRegisterControl(Object, Meta)
+	if not Compkiller.WebMirror or Compkiller.WebMirror.Enabled == false or type(Object) ~= "table" then
+		return Object
+	end
+
+	Meta = Meta or {}
+	local Config = Meta.Config or {}
+	local Owner = Meta.Owner or {}
+	local TabName = tostring(Owner.__WebTabName or Meta.TabName or "Main")
+	local SectionName = tostring(Owner.__WebSectionName or Meta.SectionName or "Main")
+	local Label = tostring(Config.Name or Config.Title or Meta.Label or Meta.Type or "Control")
+	local Id = tostring(Meta.Id or Config.Flag or Object.Flag or (Compkiller:_WebKey(TabName) .. "." .. Compkiller:_WebKey(SectionName) .. "." .. Compkiller:_WebKey(Label)))
+	local Type = tostring(Meta.Type or "control")
+
+	Object.__WebMirrorId = Id
+	Object.__WebMirrorType = Type
+
+	local Item = Compkiller.WebMirror.Controls[Id]
+	if not Item then
+		Item = { Id = Id }
+		Compkiller.WebMirror.Controls[Id] = Item
+		table.insert(Compkiller.WebMirror.Order, Id)
+	end
+
+	Item.Id = Id
+	Item.Type = Type
+	Item.Label = Label
+	Item.Tab = TabName
+	Item.TabKey = tostring(Owner.__WebTabKey or Meta.TabKey or Compkiller:_WebKey(TabName))
+	Item.Section = SectionName
+	Item.SectionKey = tostring(Owner.__WebSectionKey or Meta.SectionKey or Compkiller:_WebKey(SectionName))
+	Item.Position = Owner.__WebSectionPosition or Meta.Position
+	Item.Object = Object
+	Item.Flag = Config.Flag or Object.Flag
+	Item.Options = Compkiller:_WebCopyList(Config.Values or Config.Options)
+	Item.Multi = Config.Multi == true
+	Item.Min = Config.Min
+	Item.Max = Config.Max
+	Item.Round = Config.Round
+	Item.Suffix = Config.Type or Config.Suffix or ""
+	Item.Numeric = Config.Numeric == true or Config.Numberic == true
+	Item.Value = Compkiller:_WebSafeValue(Config.Default or Config.Value or Config.Content)
+
+	Compkiller:_WebTouch()
+	return Object
+end
+
+function Compkiller:_WebConfigSnapshot(Config)
+	local Snapshot = {
+		configs = {},
+		autoLoad = nil,
+		count = 0,
+	}
+	if type(Config) ~= "table" then
+		return Snapshot
+	end
+
+	local Full = nil
+	if type(Config.GetFullConfigs) == "function" then
+		local ok, Result = pcall(function()
+			return Config:GetFullConfigs()
+		end)
+		if ok then Full = Result end
+	end
+	if type(Full) ~= "table" and type(Config.GetConfigs) == "function" then
+		local ok, Result = pcall(function()
+			return Config:GetConfigs()
+		end)
+		if ok and type(Result) == "table" then
+			Full = {}
+			for _, Name in ipairs(Result) do
+				table.insert(Full, { Name = Name, Info = { Author = "" } })
+			end
+		end
+	end
+
+	local AutoLoad = nil
+	if type(Config.GetAutoLoadConfig) == "function" then
+		local ok, Result = pcall(function()
+			return Config:GetAutoLoadConfig()
+		end)
+		if ok then AutoLoad = Result end
+	end
+	Snapshot.autoLoad = AutoLoad
+
+	if type(Full) == "table" then
+		for _, Entry in ipairs(Full) do
+			local Name = tostring(Entry.Name or (Entry.Info and Entry.Info.Name) or "")
+			if Name ~= "" then
+				local Author = ""
+				if type(Entry.Info) == "table" then
+					Author = tostring(Entry.Info.Author or "")
+				end
+				local IsAuto = false
+				if type(Config.HasAutoLoadConfig) == "function" then
+					local ok, Result = pcall(function()
+						return Config:HasAutoLoadConfig(Name)
+					end)
+					IsAuto = ok and Result == true
+				else
+					IsAuto = AutoLoad == Name
+				end
+				table.insert(Snapshot.configs, {
+					name = Name,
+					author = Author,
+					autoLoad = IsAuto,
+				})
+			end
+		end
+	end
+	Snapshot.count = #Snapshot.configs
+	return Snapshot
+end
+
+function Compkiller:_WebRegisterConfigManager(Object, Meta)
+	if not Compkiller.WebMirror or Compkiller.WebMirror.Enabled == false then
+		return Object
+	end
+	Meta = Meta or {}
+	local Config = Meta.Config
+	local Label = tostring(Meta.Name or "Config")
+	local Id = tostring(Meta.Id or ("config." .. Compkiller:_WebKey(Label)))
+
+	Object.__WebMirrorId = Id
+	Object.__WebMirrorType = "configManager"
+
+	local Item = Compkiller.WebMirror.ConfigManagers[Id]
+	if not Item then
+		Item = { Id = Id }
+		Compkiller.WebMirror.ConfigManagers[Id] = Item
+		table.insert(Compkiller.WebMirror.ConfigOrder, Id)
+	end
+
+	Item.Id = Id
+	Item.Type = "configManager"
+	Item.Label = Label
+	Item.Tab = Label
+	Item.TabKey = Compkiller:_WebKey(Label)
+	Item.Section = "Manager"
+	Item.SectionKey = "manager"
+	Item.Object = Object
+	Item.Config = Config
+	Item.Value = Compkiller:_WebConfigSnapshot(Config)
+
+	Compkiller:_WebTouch()
+	return Object
+end
+
+function Compkiller:GetWebSchema()
+	local Tabs = {}
+	local TabsByKey = {}
+	local function GetTab(Key, Label)
+		local Tab = TabsByKey[Key]
+		if not Tab then
+			Tab = { key = Key, label = Label, groups = {}, __groups = {} }
+			TabsByKey[Key] = Tab
+			table.insert(Tabs, Tab)
+		end
+		return Tab
+	end
+	local function GetGroup(Tab, Key, Label)
+		local Group = Tab.__groups[Key]
+		if not Group then
+			Group = { key = Key, label = Label, controls = {} }
+			Tab.__groups[Key] = Group
+			table.insert(Tab.groups, Group)
+		end
+		return Group
+	end
+
+	for _, Id in ipairs(Compkiller.WebMirror.Order) do
+		local Item = Compkiller.WebMirror.Controls[Id]
+		if Item then
+			local Tab = GetTab(Item.TabKey, Item.Tab)
+			local Group = GetGroup(Tab, Item.SectionKey, Item.Section)
+			local Control = {
+				id = Item.Id,
+				label = Item.Label,
+				type = Item.Type,
+				value = Compkiller:_WebReadControl(Item),
+				flag = Item.Flag,
+			}
+			if Item.Options and #Item.Options > 0 then Control.options = Item.Options end
+			if Item.Multi then Control.multi = true end
+			if Item.Min ~= nil then Control.min = Item.Min end
+			if Item.Max ~= nil then Control.max = Item.Max end
+			if Item.Round ~= nil then Control.round = Item.Round end
+			if Item.Suffix and Item.Suffix ~= "" then Control.suffix = Item.Suffix end
+			if Item.Numeric then Control.numeric = true end
+			table.insert(Group.controls, Control)
+		end
+	end
+
+	for _, Id in ipairs(Compkiller.WebMirror.ConfigOrder) do
+		local Item = Compkiller.WebMirror.ConfigManagers[Id]
+		if Item then
+			local Tab = GetTab(Item.TabKey, Item.Tab)
+			local Group = GetGroup(Tab, Item.SectionKey, Item.Section)
+			Item.Value = Compkiller:_WebConfigSnapshot(Item.Config)
+			table.insert(Group.controls, {
+				id = Item.Id,
+				label = Item.Label,
+				type = "configManager",
+				value = Item.Value,
+			})
+		end
+	end
+
+	for _, Tab in ipairs(Tabs) do
+		Tab.__groups = nil
+	end
+
+	return {
+		version = Compkiller.Version,
+		changedAt = Compkiller.WebMirror.ChangedAt,
+		tabs = Tabs,
+	}
+end
+
+function Compkiller:GetWebValues()
+	local Values = {}
+	for _, Id in ipairs(Compkiller.WebMirror.Order) do
+		local Item = Compkiller.WebMirror.Controls[Id]
+		if Item then
+			Values[Id] = Compkiller:_WebReadControl(Item)
+		end
+	end
+	return Values
+end
+
+function Compkiller:ApplyWebCommand(Command)
+	Command = Command or {}
+	local Id = tostring(Command.controlId or Command.id or "")
+	local Action = tostring(Command.action or Command.type or "set")
+	local Value = Command.value
+
+	local Control = Compkiller.WebMirror.Controls[Id]
+	if Control and Control.Object then
+		if Control.Type == "button" or Action == "click" then
+			if type(Control.Object.Click) == "function" then
+				Control.Object:Click()
+				Compkiller:_WebTouch()
+				return true, "clicked"
+			end
+			return false, "button_click_unavailable"
+		end
+		if type(Control.Object.SetValue) == "function" then
+			local ok, err = pcall(function()
+				Control.Object:SetValue(Value)
+			end)
+			if ok then
+				Compkiller:_WebTouch()
+				return true, "applied"
+			end
+			return false, tostring(err or "set_failed")
+		end
+		return false, "set_unavailable"
+	end
+
+	local Manager = Compkiller.WebMirror.ConfigManagers[Id]
+	if Manager and Manager.Config then
+		local Config = Manager.Config
+		local Name = tostring(Command.configName or (type(Value) == "table" and Value.name) or Command.name or "")
+		local Author = tostring(Command.author or (type(Value) == "table" and Value.author) or (Players.LocalPlayer and Players.LocalPlayer.Name) or "")
+		local ok, result = pcall(function()
+			if Action == "save" or Action == "create" or Action == "add" then
+				return Config:WriteConfig({ Name = Name, Author = Author })
+			elseif Action == "load" then
+				if type(Config.LoadConfigSmart) == "function" then
+					return Config:LoadConfigSmart(Name)
+				end
+				return Config:LoadConfig(Name)
+			elseif Action == "setAutoLoad" or Action == "auto" then
+				return Config:SetAutoLoadConfig(Name)
+			elseif Action == "clearAutoLoad" or Action == "removeAutoLoad" then
+				return Config:RemoveAutoLoadConfig()
+			elseif Action == "delete" then
+				return Config:DeleteConfig(Name)
+			end
+			return false, "unknown_config_action"
+		end)
+		if ok then
+			if Manager.Object and type(Manager.Object.RefreshConfigs) == "function" then
+				pcall(function()
+					Manager.Object:RefreshConfigs()
+				end)
+			elseif Manager.Object and type(Manager.Object.Refresh) == "function" then
+				pcall(function()
+					Manager.Object:Refresh()
+				end)
+			end
+			Compkiller:_WebTouch()
+			return true, tostring(result or "config_applied")
+		end
+		return false, tostring(result or "config_failed")
+	end
+
+	return false, "unknown_control"
+end
+
 
 Compkiller.Lucide = {
 	GetAsset = function(p : string)
@@ -2840,6 +3220,8 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Compkiller.Flags[Config.Flag] = Args;
 		end;
 
+		Compkiller:_WebRegisterControl(Args, { Type = "toggle", Config = Config, Owner = self });
+
 		return Args;
 	end;
 
@@ -2930,6 +3312,8 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Compkiller.Flags[Config.Flag] = Args;
 		end;
 
+		Compkiller:_WebRegisterControl(Args, { Type = "keybind", Config = Config, Owner = self });
+
 		return Args;
 	end;
 
@@ -3001,6 +3385,8 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		if Config.Flag then
 			Compkiller.Flags[Config.Flag] = Args;
 		end;
+
+		Compkiller:_WebRegisterControl(Args, { Type = "colorpicker", Config = Config, Owner = self });
 
 		return Args;
 	end;
@@ -3148,10 +3534,26 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			end;
 		end);
 
+		Args.Flag = Config.Flag;
+
 		function Args:SetText(t)
 			Config.Name = t;
 			TextLabel.Text = Config.Name;
 		end;
+
+		function Args:Click()
+			Config.Callback();
+		end;
+
+		function Args:GetValue()
+			return Config.Name;
+		end;
+
+		if Config.Flag then
+			Compkiller.Flags[Config.Flag] = Args;
+		end;
+
+		Compkiller:_WebRegisterControl(Args, { Type = "button", Config = Config, Owner = self });
 
 		return Args;
 	end;
@@ -3503,6 +3905,8 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Compkiller.Flags[Config.Flag] = Args;
 		end;
 
+		Compkiller:_WebRegisterControl(Args, { Type = "slider", Config = Config, Owner = self });
+
 		return Args;
 	end;
 
@@ -3622,6 +4026,10 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			UpdateScale();
 		end;
 
+		function Args:GetValue()
+			return { Title = BlockText.Text, Content = DescriptionText.Text };
+		end;
+
 		Args.Signal = Signal:Connect(function(bool)
 			if bool then
 				Compkiller:_Animation(BlockText,TweenInfo.new(0.2),{
@@ -3649,6 +4057,8 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 				});
 			end;
 		end);
+
+		Compkiller:_WebRegisterControl(Args, { Type = "paragraph", Config = Config, Owner = self });
 
 		return Args;
 	end;
@@ -3870,6 +4280,8 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		if Config.Flag then
 			Compkiller.Flags[Config.Flag] = Args;
 		end;
+
+		Compkiller:_WebRegisterControl(Args, { Type = "textbox", Config = Config, Owner = self });
 
 		return Args;
 	end;
@@ -4212,6 +4624,8 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		if Config.Flag then
 			Compkiller.Flags[Config.Flag] = Args;
 		end;
+
+		Compkiller:_WebRegisterControl(Args, { Type = Config.Multi and "multiselect" or "dropdown", Config = Config, Owner = self });
 
 		return Args;
 	end;
@@ -6114,11 +6528,11 @@ function Compkiller.new(Config : Window)
 			DelButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			DelButton.BorderSizePixel = 0
 			DelButton.LayoutOrder = -9999
-			DelButton.Size = UDim2.new(0, 35, 0, 15)
+			DelButton.Size = UDim2.new(0, 24, 0, 16)
 			DelButton.ZIndex = 14
 			DelButton.Image = "rbxassetid://10747362393"
 			DelButton.ImageColor3 = Color3.fromRGB(255, 107, 107)
-			DelButton.ImageTransparency = 0.500
+			DelButton.ImageTransparency = 0.350
 			DelButton.ScaleType = Enum.ScaleType.Fit
 
 			UICorner.CornerRadius = UDim.new(1, 0)
@@ -6172,7 +6586,7 @@ function Compkiller.new(Config : Window)
 			UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 			UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 			UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-			UIListLayout.Padding = UDim.new(0, -10)
+			UIListLayout.Padding = UDim.new(0, 4)
 
 			SaveButton.Name = "SaveButton"
 			SaveButton.Parent = LinkValues
@@ -6401,7 +6815,7 @@ function Compkiller.new(Config : Window)
 			AuthorText.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			AuthorText.BorderSizePixel = 0
 			AuthorText.Position = UDim2.new(0.5, -65, 0.5, 15)
-			AuthorText.Size = UDim2.new(1, -20, 0, 25)
+			AuthorText.Size = UDim2.new(1, -360, 0, 25)
 			AuthorText.ZIndex = 10
 			AuthorText.Font = Enum.Font.GothamMedium
 			AuthorText.RichText = true;
@@ -6410,9 +6824,10 @@ function Compkiller.new(Config : Window)
 			AuthorText.TextSize = 13.000
 			AuthorText.TextTransparency = 1
 			AuthorText.TextXAlignment = Enum.TextXAlignment.Left
+			AuthorText.TextTruncate = Enum.TextTruncate.AtEnd
 			
 			table.insert(Compkiller.Elements.SwitchColor , {
-				Element = TabNameLabel,
+				Element = AuthorText,
 				Property = 'TextColor3'
 			});
 			
@@ -6578,9 +6993,12 @@ function Compkiller.new(Config : Window)
 			function ConfigButton:Update()
 				local nameScale = TextService:GetTextSize(ConfigText.Text,ConfigText.TextSize,ConfigText.Font,Vector2.new(math.huge,math.huge));
 
-				AuthorText:SetAttribute('SPC',math.clamp(nameScale.X + 20 , 100,150));
+				local authorStart = math.clamp(nameScale.X + 24 , 110, 170);
+				local reservedRight = 285;
 
-				AuthorText.Position = UDim2.new(0, AuthorText:GetAttribute('SPC'), 0.5, 15)
+				AuthorText:SetAttribute('SPC', authorStart);
+				AuthorText.Position = UDim2.new(0, authorStart, 0.5, 15);
+				AuthorText.Size = UDim2.new(1, -(authorStart + reservedRight), 0, 25);
 			end;
 
 			ConfigButton:Update();
@@ -6619,6 +7037,7 @@ function Compkiller.new(Config : Window)
 						Name = TextBox.Text,
 						Author = WindowArgs.Username,
 					});
+					task.defer(Refresh);
 				end;
 			end);
 
@@ -6673,6 +7092,8 @@ function Compkiller.new(Config : Window)
 						if Configuration.Config:HasAutoLoadConfig(v.Name) then
 							Configuration.Config:SetAutoLoadConfig(v.Name);
 						end;
+
+						task.defer(Refresh);
 					end
 
 					Button.OnAutoLoad = function()
@@ -6687,6 +7108,7 @@ function Compkiller.new(Config : Window)
 
 					Button.OnDelete = function()
 						Configuration.Config:DeleteConfig(v.Name)
+						task.defer(Refresh);
 					end
 				end;
 			end;
@@ -6695,6 +7117,8 @@ function Compkiller.new(Config : Window)
 			TabArgs.RefreshConfigs = Refresh;
 			Init.Refresh = Refresh;
 			Init.RefreshConfigs = Refresh;
+
+			Compkiller:_WebRegisterConfigManager(TabArgs, { Name = Configuration.Name, Config = Configuration.Config });
 
 			Refresh();
 
@@ -7152,6 +7576,9 @@ function Compkiller.new(Config : Window)
 
 		end;
 
+		TabArgs.__WebTabName = TabConfig.Name;
+		TabArgs.__WebTabKey = Compkiller:_WebKey(TabConfig.Name);
+
 		local lastSection = 'right';
 
 		function TabArgs:DrawSection(config: Section)
@@ -7307,6 +7734,11 @@ function Compkiller.new(Config : Window)
 
 			local SectionArgs = Compkiller:_LoadElement(Section , true , TabOpenSignal)
 			SectionArgs.__MainFrame = Section
+			SectionArgs.__WebTabName = TabArgs.__WebTabName or TabConfig.Name
+			SectionArgs.__WebTabKey = TabArgs.__WebTabKey or Compkiller:_WebKey(TabConfig.Name)
+			SectionArgs.__WebSectionName = config.Name
+			SectionArgs.__WebSectionKey = Compkiller:_WebKey(config.Name)
+			SectionArgs.__WebSectionPosition = config.Position
 			return SectionArgs
 		end;
 
