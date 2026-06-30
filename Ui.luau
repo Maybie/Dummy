@@ -366,7 +366,7 @@ local Mouse = LocalPlayer:GetMouse();
 local CurrentCamera = workspace.CurrentCamera;
 
 local Compkiller = {
-	Version = '1.5.4-webmirror',
+	Version = '1.5.5-webmirror-stability',
 	Logo = "rbxassetid://120245531583106",
 	Windows = {},
 	Scale = {
@@ -485,6 +485,9 @@ function Compkiller:_WebReadControl(Item)
 			return Object:GetValue()
 		end)
 		if ok then
+			if (Item.Type == "paragraph" or Item.Type == "status" or Item.Type == "text") and type(Value) == "table" then
+				return tostring(Value.Content or Value.Text or Value.Value or "")
+			end
 			return Compkiller:_WebSafeValue(Value)
 		end
 	end
@@ -572,8 +575,15 @@ function Compkiller:_WebConfigSnapshot(Config)
 		local ok, Result = pcall(function()
 			return Config:GetAutoLoadConfig()
 		end)
-		if ok then AutoLoad = Result end
+		if ok then
+			if type(Result) == "table" then
+				AutoLoad = tostring(Result.ConfigName or Result.Name or "")
+			elseif Result ~= false and Result ~= nil then
+				AutoLoad = tostring(Result)
+			end
+		end
 	end
+	if AutoLoad == "" then AutoLoad = nil end
 	Snapshot.autoLoad = AutoLoad
 
 	if type(Full) == "table" then
@@ -695,6 +705,9 @@ function Compkiller:GetWebSchema()
 				label = Item.Label,
 				type = "configManager",
 				value = Item.Value,
+				configs = Item.Value.configs,
+				autoLoad = Item.Value.autoLoad,
+				count = Item.Value.count,
 			})
 		end
 	end
@@ -724,8 +737,8 @@ end
 function Compkiller:ApplyWebCommand(Command)
 	Command = Command or {}
 	local Id = tostring(Command.controlId or Command.id or "")
-	local Action = tostring(Command.action or Command.type or "set")
 	local Value = Command.value
+	local Action = tostring(Command.action or (type(Value) == "table" and Value.action) or Command.type or "set")
 
 	local Control = Compkiller.WebMirror.Controls[Id]
 	if Control and Control.Object then
