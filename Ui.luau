@@ -1,13 +1,3 @@
---[[
-    		Fatality-Dark Interface
-
-    Author: 4lpaca
-    License: MIT
-    Github: https://github.com/4lpaca-pin/CompKiller
---]]
-
---- Export Types ---
-
 export type cloneref = (target: Instance) -> Instance;
 
 export type ToggleButton = {
@@ -48,10 +38,23 @@ export type WindowUpdate = {
 
 export type ConfigFunctions = {
 	Directory: string,
+	SettingsDirectory: string,
 	WriteConfig: (self: ConfigFunctions , Config: WriteConfig) -> any?,
+	ReadConfig: (self: ConfigFunctions , ConfigName: string) -> any?,
 	ReadInfo: (self: ConfigFunctions , ConfigName: string) -> any?,
 	DeleteConfig: (self: ConfigFunctions , ConfigName: string) -> any?,
+	RenameConfig: (self: ConfigFunctions , ConfigName: string, NewName: string, Author: string?) -> any?,
 	LoadConfig: (self: ConfigFunctions , ConfigName: string) -> any?,
+	LoadConfigSmart: (self: ConfigFunctions , ConfigName: string) -> any?,
+	LoadConfigFromString: (self: ConfigFunctions , Data: string) -> any?,
+	GetCurrentConfig: (self: ConfigFunctions) -> any?,
+	GetConfigHash: (self: ConfigFunctions , ConfigName: string) -> any?,
+	GetCurrentConfigHash: (self: ConfigFunctions) -> string,
+	SetAutoLoadConfig: (self: ConfigFunctions , ConfigName: string) -> any?,
+	RemoveAutoLoadConfig: (self: ConfigFunctions) -> any?,
+	GetAutoLoadConfig: (self: ConfigFunctions) -> any?,
+	HasAutoLoadConfig: (self: ConfigFunctions , ConfigName: string) -> boolean,
+	ApplyAutoLoadConfig: (self: ConfigFunctions) -> any?,
 	GetConfigs: (self: ConfigFunctions , ConfigName: string) -> {string},
 	GetConfigCount: (self: ConfigFunctions) -> number,
 	GetFullConfigs: (self: ConfigFunctions , ConfigName: string) -> {
@@ -193,7 +196,7 @@ export type Paragraph = {
 pcall(function()
 	local Constant = table.concat({"LP","H_NO"}).."_VI".."RTU".."AL".."IZE";
 	getfenv()[Constant] = getfenv()[Constant] or function(f) return f end; 
-	-- LPH_NO_VIRTUALIZE
+	
 end);
 
 if identifyexecutor() == 'Salad' then
@@ -202,7 +205,7 @@ end
 
 getgenv = getgenv or getfenv;
 
--- Please ignore the ugly code. [Custom File System] --
+
 if cloneref(game:GetService('RunService')):IsStudio() then
 	local BaseWorkspace = Instance.new('Folder',game:GetService("ReplicatedFirst"));
 
@@ -323,7 +326,7 @@ if cloneref(game:GetService('RunService')):IsStudio() then
 	end;
 end;
 
---- Local Variables ---
+
 local cloneref: cloneref = cloneref or function(f) return f end;
 local TweenService: TweenService = cloneref(game:GetService('TweenService'));
 local UserInputService: UserInputService = cloneref(game:GetService('UserInputService'));
@@ -1686,7 +1689,7 @@ function Compkiller:_AddColorPickerPanel(Button: ImageButton , Callback: (Color:
 
 		local MUL = Window.AbsoluteSize.Y / 2;
 
-		if MainPosition.Y.Offset > MUL then -- go up
+		if MainPosition.Y.Offset > MUL then 
 			MainPosition = UDim2.fromOffset(Button.AbsolutePosition.X,Button.AbsolutePosition.Y + 45);
 			DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset - 25);
 
@@ -2302,7 +2305,7 @@ function Compkiller:_LoadOption(Value , TabSignal)
 			local DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset + 15);
 			local MUL = Window.AbsoluteSize.Y / 2;
 
-			if MainPosition.Y.Offset > MUL then -- go up
+			if MainPosition.Y.Offset > MUL then 
 				MainPosition = UDim2.fromOffset(Element.AbsolutePosition.X,Element.AbsolutePosition.Y + 45);
 				DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset - 25);
 				ExtractElement.AnchorPoint = Vector2.new(0,1)
@@ -2497,7 +2500,7 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 		local MainPosition = UDim2.fromOffset(BaseParent.AbsolutePosition.X + 1,BaseParent.AbsolutePosition.Y + 80);
 		local DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset + 25);
 
-		if MainPosition.Y.Offset > MUL then -- go up
+		if MainPosition.Y.Offset > MUL then 
 			MainPosition = UDim2.fromOffset(BaseParent.AbsolutePosition.X + 1,BaseParent.AbsolutePosition.Y + 55);
 			DropPosition = UDim2.fromOffset(MainPosition.X.Offset,MainPosition.Y.Offset - 25);
 
@@ -3503,7 +3506,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		return Args;
 	end;
 
-	function Args:AddParagraph(Config: Paragraph) -- request by Neptune
+	function Args:AddParagraph(Config: Paragraph) 
 		Config = Compkiller:_ConvertArgs(Config)
 
 		Config = Compkiller.__CONFIG(Config, {
@@ -4932,7 +4935,7 @@ function Compkiller.new(Config : Window)
 			Tabs = {}
 		};
 
-		-- Creating Button --
+		
 
 		local TabButton = Instance.new("Frame")
 		local Icon = Instance.new("ImageLabel")
@@ -5005,7 +5008,7 @@ function Compkiller.new(Config : Window)
 		UICorner.CornerRadius = UDim.new(0, 4)
 		UICorner.Parent = Highlight
 
-		-- Creating Container --
+		
 
 		local ContainerTab = Instance.new("Frame")
 		local MainFrame = Instance.new("Frame")
@@ -5067,7 +5070,7 @@ function Compkiller.new(Config : Window)
 
 		Compkiller:_AddDragBlacklist(Top)
 
-		-- Functions --
+		
 		Highlight:GetPropertyChangedSignal('BackgroundTransparency'):Connect(function()
 			if Highlight.BackgroundTransparency <= 0.99 then
 				ContainerTab.Visible = true;
@@ -5212,7 +5215,7 @@ function Compkiller.new(Config : Window)
 			end;
 		end);
 
-		function TabArgs:DrawTab(TabConfig : TabConfig) -- Internal Tab
+		function TabArgs:DrawTab(TabConfig : TabConfig) 
 			TabConfig = Compkiller.__CONFIG(TabConfig,{
 				Name = "Tab",
 				Type = "Double",
@@ -5424,7 +5427,7 @@ function Compkiller.new(Config : Window)
 		local TabOpenSignal = Compkiller.__SIGNAL(false);
 		local TabArgs = {};
 
-		-- Button --
+		
 		local TabButton = Instance.new("Frame")
 		local Icon = Instance.new("ImageLabel")
 		local TabNameLabel = Instance.new("TextLabel")
@@ -5838,7 +5841,7 @@ function Compkiller.new(Config : Window)
 					BackgroundTransparency = 0.925
 				});
 
-				--
+				
 
 				Compkiller:_Animation(ConfigList,Tween,{
 					BackgroundTransparency = 0,
@@ -6092,6 +6095,12 @@ function Compkiller.new(Config : Window)
 			local UICorner_2 = Instance.new("UICorner")
 			local TextLabel_2 = Instance.new("TextLabel")
 			local Icon_2 = Instance.new("ImageLabel")
+			local AutoButton = Instance.new("Frame")
+			local Frame_3 = Instance.new("Frame")
+			local UIStroke_5 = Instance.new("UIStroke")
+			local UICorner_5 = Instance.new("UICorner")
+			local TextLabel_3 = Instance.new("TextLabel")
+			local Icon_3 = Instance.new("ImageLabel")
 			local UIStroke_3 = Instance.new("UIStroke")
 			local UICorner_3 = Instance.new("UICorner")
 			local AuthorText = Instance.new("TextLabel")
@@ -6302,6 +6311,76 @@ function Compkiller.new(Config : Window)
 			Icon_2.ZIndex = 15
 			Icon_2.Image = "rbxassetid://10723344270"
 			Icon_2.ImageTransparency = 1
+
+			AutoButton.Name = "AutoButton"
+			AutoButton.Parent = LinkValues
+			AutoButton.BackgroundTransparency = 1.000
+			AutoButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			AutoButton.BorderSizePixel = 0
+			AutoButton.Size = UDim2.new(0, 96, 0, 30)
+			AutoButton.ZIndex = 14
+
+			Frame_3.Parent = AutoButton
+			Frame_3.AnchorPoint = Vector2.new(0.5, 0.5)
+			Frame_3.BackgroundColor3 = Compkiller.Colors.Highlight
+			Frame_3.BackgroundTransparency = 1
+			Frame_3.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			Frame_3.BorderSizePixel = 0
+			Frame_3.Position = UDim2.new(0.5, 0, 0.5, 0)
+			Frame_3.Size = UDim2.new(1, -15, 1, -5)
+			Frame_3.ZIndex = 14
+
+			table.insert(Compkiller.Elements.Highlight,{
+				Element = Frame_3,
+				Property = "BackgroundColor3"
+			});
+
+			UIStroke_5.Transparency = 1
+			UIStroke_5.Color = Compkiller.Colors.StrokeColor
+			UIStroke_5.Parent = Frame_3
+			
+			table.insert(Compkiller.Elements.StrokeColor,{
+				Element = UIStroke_5,
+				Property = "Color"
+			});
+
+			UICorner_5.CornerRadius = UDim.new(0, 3)
+			UICorner_5.Parent = Frame_3
+
+			TextLabel_3.Parent = Frame_3
+			TextLabel_3.AnchorPoint = Vector2.new(0, 0.5)
+			TextLabel_3.BackgroundTransparency = 1.000
+			TextLabel_3.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			TextLabel_3.BorderSizePixel = 0
+			TextLabel_3.Position = UDim2.new(0, 29, 0.5, 0)
+
+			TextLabel_3.Size = UDim2.new(1, -34, 1, 0)
+			TextLabel_3.ZIndex = 14
+			TextLabel_3.Font = Enum.Font.GothamMedium
+			TextLabel_3.Text = "Auto"
+			TextLabel_3.TextColor3 = Compkiller.Colors.SwitchColor
+			TextLabel_3.TextSize = 12.000
+			TextLabel_3.TextStrokeTransparency = 1
+			TextLabel_3.TextXAlignment = Enum.TextXAlignment.Left
+			TextLabel_3.TextTransparency = 1
+			
+			table.insert(Compkiller.Elements.SwitchColor , {
+				Element = TextLabel_3,
+				Property = 'TextColor3'
+			});
+			
+			Icon_3.Name = "Icon"
+			Icon_3.Parent = Frame_3
+			Icon_3.AnchorPoint = Vector2.new(0, 0.5)
+			Icon_3.BackgroundTransparency = 1.000
+			Icon_3.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			Icon_3.BorderSizePixel = 0
+			Icon_3.Position = UDim2.new(0, 5, 0.5, 0)
+			Icon_3.Size = UDim2.new(0.699999988, 0, 0.699999988, 0)
+			Icon_3.SizeConstraint = Enum.SizeConstraint.RelativeYY
+			Icon_3.ZIndex = 15
+			Icon_3.Image = "rbxassetid://10734950309"
+			Icon_3.ImageTransparency = 1
 			UIStroke_3.Transparency = 1
 
 			UIStroke_3.Color = Compkiller.Colors.StrokeColor
@@ -6346,6 +6425,12 @@ function Compkiller.new(Config : Window)
 				if ConfigBlock.BackgroundTransparency >= 0.7 then
 					ConfigButton:Update();
 				end;
+			end;
+
+			function ConfigButton:SetAutoLoad(Enabled)
+				ConfigButton.AutoLoadEnabled = Enabled and true or false;
+				TextLabel_3.Text = ConfigButton.AutoLoadEnabled and "Auto On" or "Auto";
+				Frame_3:SetAttribute("Enabled", ConfigButton.AutoLoadEnabled);
 			end;
 
 			function ConfigButton:Toggle(v)
@@ -6401,6 +6486,23 @@ function Compkiller.new(Config : Window)
 						TextStrokeTransparency = 0.900,
 						TextTransparency = 0
 					});
+
+					Compkiller:_Animation(Icon_3,Tween,{
+						ImageTransparency = 0
+					});
+
+					Compkiller:_Animation(Frame_3,Tween,{
+						BackgroundTransparency = 0.100
+					});
+
+					Compkiller:_Animation(UIStroke_5,Tween,{
+						Transparency = 0
+					});
+
+					Compkiller:_Animation(TextLabel_3,Tween,{
+						TextStrokeTransparency = 0.900,
+						TextTransparency = 0
+					});
 				else
 					Compkiller:_Animation(AuthorText,Tween,{
 						TextTransparency = 1,
@@ -6453,6 +6555,23 @@ function Compkiller.new(Config : Window)
 						TextStrokeTransparency = 1,
 						TextTransparency = 1
 					});
+
+					Compkiller:_Animation(Icon_3,Tween,{
+						ImageTransparency = 1
+					});
+
+					Compkiller:_Animation(Frame_3,Tween,{
+						BackgroundTransparency = 1
+					});
+
+					Compkiller:_Animation(UIStroke_5,Tween,{
+						Transparency = 1
+					});
+
+					Compkiller:_Animation(TextLabel_3,Tween,{
+						TextStrokeTransparency = 1,
+						TextTransparency = 1
+					});
 				end;
 			end;
 
@@ -6474,12 +6593,17 @@ function Compkiller.new(Config : Window)
 				task.spawn(ConfigButton.OnSave);
 			end);
 
+			Compkiller:_Input(AutoButton,function()
+				task.spawn(ConfigButton.OnAutoLoad);
+			end);
+
 			DelButton.MouseButton1Click:Connect(function()
 				task.spawn(ConfigButton.OnDelete);
 			end)
 
 			ConfigButton.OnLoad = nil;
 			ConfigButton.OnSave = nil;
+			ConfigButton.OnAutoLoad = nil;
 			ConfigButton.OnDelete = nil;
 
 			return ConfigButton;
@@ -6498,7 +6622,11 @@ function Compkiller.new(Config : Window)
 				end;
 			end);
 
-			local Refresh = function()
+			local Refresh;
+
+
+
+			Refresh = function()
 				local FullConfig = Configuration.Config:GetFullConfigs();
 
 				for i,v in next, ScrollingFrame:GetChildren() do
@@ -6511,17 +6639,25 @@ function Compkiller.new(Config : Window)
 					v:Disconnect();
 				end;
 
+					__signals = {};
+
+
 				for i,v in next , FullConfig do
 					local Button = TabArgs:_DrawConfig();
 
 					Button:SetInfo(v.Info.Author,v.Name);
+					Button:SetAutoLoad(Configuration.Config:HasAutoLoadConfig(v.Name));
 
 					table.insert(__signals,TabOpenSignal:Connect(function(v)
 						Button:Toggle(v);
 					end));
 
 					Button.OnLoad = function()
-						Configuration.Config:LoadConfig(v.Name);
+						if Configuration.Config.LoadConfigSmart then
+							Configuration.Config:LoadConfigSmart(v.Name);
+						else
+							Configuration.Config:LoadConfig(v.Name);
+						end;
 					end;
 
 					Button.OnSave = function()
@@ -6533,7 +6669,21 @@ function Compkiller.new(Config : Window)
 							Name = v.Name,
 							Author = NewAuthorText;
 						});
+
+						if Configuration.Config:HasAutoLoadConfig(v.Name) then
+							Configuration.Config:SetAutoLoadConfig(v.Name);
+						end;
 					end
+
+					Button.OnAutoLoad = function()
+						if Configuration.Config:HasAutoLoadConfig(v.Name) then
+							Configuration.Config:RemoveAutoLoadConfig();
+						else
+							Configuration.Config:SetAutoLoadConfig(v.Name);
+						end;
+
+						task.defer(Refresh);
+					end;
 
 					Button.OnDelete = function()
 						Configuration.Config:DeleteConfig(v.Name)
@@ -6542,6 +6692,13 @@ function Compkiller.new(Config : Window)
 			end;
 
 			Refresh();
+
+			task.defer(function()
+				task.wait(0.25);
+				pcall(function()
+					Configuration.Config:ApplyAutoLoadConfig();
+				end);
+			end);
 
 			Init.THREAD = task.spawn(function()
 				local OldIndex = Configuration.Config:GetConfigCount();
@@ -6686,7 +6843,7 @@ function Compkiller.new(Config : Window)
 				TabContent.Visible = true;
 			end;
 		else
-			-- Button --
+			
 			local TabButton = Instance.new("Frame")
 			local Icon = Instance.new("ImageLabel")
 			local TabNameLabel = Instance.new("TextLabel")
@@ -7693,19 +7850,128 @@ function Compkiller:ConfigManager(ConfigManager: ConfigManager) : ConfigFunction
 		Config = "Software"
 	});
 
-	if not isfolder(ConfigManager.Directory) then
-		makefolder(ConfigManager.Directory);
+	local function EnsureFolder(Path)
+		if not isfolder(Path) then
+			makefolder(Path);
+		end;
 	end;
 
-	if not isfolder(Compkiller:_Path(ConfigManager.Directory , ConfigManager.Config)) then
-		makefolder(Compkiller:_Path(ConfigManager.Directory , ConfigManager.Config));
-	end;
+	EnsureFolder(ConfigManager.Directory);
+
+	local MainDirectory = Compkiller:_Path(ConfigManager.Directory , ConfigManager.Config);
+	EnsureFolder(MainDirectory);
+
+	local SettingsRoot = Compkiller:_Path(ConfigManager.Directory , "ConfigSettings");
+	EnsureFolder(SettingsRoot);
+
+	local SettingsDirectory = Compkiller:_Path(SettingsRoot , ConfigManager.Config);
+	EnsureFolder(SettingsDirectory);
 
 	local Args = {
-		Directory = Compkiller:_Path(ConfigManager.Directory , ConfigManager.Config);	
+		Directory = MainDirectory,
+		SettingsDirectory = SettingsDirectory,
+		AutoLoadFile = Compkiller:_Path(SettingsDirectory , "AutoLoad.json")
 	};
 
-	function Args:WriteConfig(Config: WriteConfig)
+	local function StableSerialize(Value)
+		local ValueType = typeof(Value);
+
+		if ValueType == "table" then
+			local Keys = {};
+
+			for Key in next , Value do
+				table.insert(Keys , Key);
+			end;
+
+			table.sort(Keys , function(A , B)
+				return tostring(A) < tostring(B);
+			end);
+
+			local Output = {};
+
+			for _ , Key in next , Keys do
+				table.insert(Output , tostring(Key) .. "=" .. StableSerialize(Value[Key]));
+			end;
+
+			return "{" .. table.concat(Output , ",") .. "}";
+		elseif ValueType == "string" then
+			return string.format("%q" , Value);
+		elseif ValueType == "number" or ValueType == "boolean" then
+			return tostring(Value);
+		elseif Value == nil then
+			return "nil";
+		end;
+
+		return tostring(Value);
+	end;
+
+	local function HashString(Value)
+		local Hash = 0;
+
+		Value = tostring(Value or "");
+
+		for Index = 1 , #Value do
+			Hash = (Hash * 131 + string.byte(Value , Index)) % 2147483647;
+		end;
+
+		return tostring(Hash);
+	end;
+
+	local function HashConfigData(Data)
+		local Clean = {};
+
+		for Key , Value in next , Data or {} do
+			if Key ~= "__INFORMATION" then
+				Clean[Key] = Value;
+			end;
+		end;
+
+		return HashString(StableSerialize(Clean));
+	end;
+
+	local function ReadJson(Path)
+		if not isfile(Path) then
+			return false;
+		end;
+
+		local Success , Decoded = pcall(function()
+			return HttpService:JSONDecode(readfile(Path));
+		end);
+
+		if Success then
+			return Decoded;
+		end;
+
+		return false;
+	end;
+
+	local function WriteJson(Path , Value)
+		local Success = pcall(function()
+			writefile(Path , HttpService:JSONEncode(Value));
+		end);
+
+		return Success;
+	end;
+
+	local function ConfigPath(ConfigName)
+		return Compkiller:_Path(Args.Directory , tostring(ConfigName or ""));
+	end;
+
+	local function IsValidConfigData(Data)
+		return typeof(Data) == "table" and typeof(Data.__INFORMATION) == "table" and Data.__INFORMATION.Type == "Information";
+	end;
+
+	local function GetConfigData(ConfigName)
+		local Data = ReadJson(ConfigPath(ConfigName));
+
+		if IsValidConfigData(Data) then
+			return Data;
+		end;
+
+		return false;
+	end;
+
+	local function BuildConfigPayload(Config)
 		Config = Compkiller.__CONFIG(Config , {
 			Name = "Config",
 			Author = LocalPlayer.Name,
@@ -7717,131 +7983,269 @@ function Compkiller:ConfigManager(ConfigManager: ConfigManager) : ConfigFunction
 			Type = "Information",
 			Author = Config.Author,
 			Name = Config.Name,
-			CreatedDate = Compkiller:GetDate()
+			CreatedDate = Compkiller:GetDate(),
+			UpdatedDate = Compkiller:GetDate(),
+			Hash = HashConfigData(Flags)
 		};
 
-		writefile(Compkiller:_Path(Args.Directory , Config.Name) , HttpService:JSONEncode(Flags));
+		return Flags;
 	end;
-	
-	function Args:LoadConfigFromString(str: string)
-		local decoded = HttpService:JSONDecode(str);
-	
+
+	local function ApplyConfigData(Decoded)
+		if not IsValidConfigData(Decoded) then
+			return false , "invalid_config";
+		end;
+
 		local Flags = Compkiller:GetConfig("KV");
 
-		for i,v in next , decoded do
-			if v and v.Flag then
+		for _ , ValueData in next , Decoded do
+			if ValueData and ValueData.Flag then
+				local Value = Flags[ValueData.Flag];
 
-				local Value = Flags[v.Flag];
+				if Value and Value.Functions then
+					if ValueData.Value.Type == "NormalElement" then
+						task.spawn(function()
+							Value.Functions:SetValue(ValueData.Value.Value);
+						end);
+					elseif ValueData.Value.Type == "ColorPicker" then
+						local Color = Color3.new(ValueData.Value.Color3.R , ValueData.Value.Color3.G , ValueData.Value.Color3.B);
+						local Transparency = ValueData.Value.Transparency;
 
-				if Value then
-
-					if v.Value.Type == "NormalElement" then
-						Value.Functions:SetValue(v.Value.Value);
-
-					elseif v.Value.Type == "ColorPicker" then
-
-						local Color = Color3.new(v.Value.Color3.R,v.Value.Color3.G,v.Value.Color3.B);
-
-						local Transparency = v.Value.Transparency;
-
-						Value.Functions:SetValue(Color , Transparency);
+						task.spawn(function()
+							Value.Functions:SetValue(Color , Transparency);
+						end);
 					end;
 				end;
-			end
+			end;
 		end;
+
+		return true , "loaded";
 	end;
-	
+
+	function Args:WriteConfig(Config: WriteConfig)
+		Config = Compkiller.__CONFIG(Config , {
+			Name = "Config",
+			Author = LocalPlayer.Name,
+		});
+
+		if not tostring(Config.Name or ""):byte() then
+			return false , "missing_name";
+		end;
+
+		return WriteJson(ConfigPath(Config.Name) , BuildConfigPayload(Config));
+	end;
+
+	function Args:ReadConfig(ConfigName: string)
+		return GetConfigData(ConfigName);
+	end;
+
+	function Args:LoadConfigFromString(str: string)
+		local Success , Decoded = pcall(function()
+			return HttpService:JSONDecode(str);
+		end);
+
+		if not Success then
+			return false , "invalid_json";
+		end;
+
+		return ApplyConfigData(Decoded);
+	end;
+
 	function Args:GetCurrentConfig()
-		return Compkiller:GetConfig("MK")
+		return Compkiller:GetConfig("MK");
+	end;
+
+	function Args:GetCurrentConfigHash()
+		return HashConfigData(Compkiller:GetConfig("MK"));
+	end;
+
+	function Args:GetConfigHash(ConfigName: string)
+		local Data = GetConfigData(ConfigName);
+
+		if not Data then
+			return false;
+		end;
+
+		return HashConfigData(Data);
 	end;
 
 	function Args:ReadInfo(ConfigName: string)
-		local _path = Compkiller:_Path(Args.Directory , ConfigName);
+		local Data = GetConfigData(ConfigName);
 
-		if isfile(_path) then
-			local info = readfile(_path);
-
-			local decoded = HttpService:JSONDecode(info);
-
-			return decoded.__INFORMATION;
+		if Data then
+			return Data.__INFORMATION;
 		end;
 
 		return false;
 	end;
 
 	function Args:GetConfigs()
-		local names = {};
+		local Names = {};
 
-		for i,v in next , listfiles(Args.Directory) do
-			local Name = string.sub(v , #Args.Directory + 2);
+		for _ , Path in next , listfiles(Args.Directory) do
+			local Name = string.sub(Path , #Args.Directory + 2);
 
-			table.insert(names , Name);
+			if GetConfigData(Name) then
+				table.insert(Names , Name);
+			end;
 		end;
 
-		return names;
+		return Names;
 	end;
 
 	function Args:GetFullConfigs()
-		local names = {};
+		local Names = {};
 
-		for i,v in next , listfiles(Args.Directory) do
-			local Name = string.sub(v , #Args.Directory + 2);
+		for _ , Path in next , listfiles(Args.Directory) do
+			local Name = string.sub(Path , #Args.Directory + 2);
 			local Info = Args:ReadInfo(Name);
 
-			table.insert(names , {
-				Name = Name,
-				Info = Info,
-			});
+			if Info then
+				table.insert(Names , {
+					Name = Name,
+					Info = Info,
+				});
+			end;
 		end;
 
-		return names;
+		return Names;
 	end;
 
 	function Args:DeleteConfig(ConfigName)
-		local _path = Compkiller:_Path(Args.Directory,ConfigName);
+		local Path = ConfigPath(ConfigName);
 
-		if isfile(_path) then
-			delfile(_path);
+		if isfile(Path) then
+			delfile(Path);
 		end;
+
+		local AutoLoad = Args:GetAutoLoadConfig();
+
+		if AutoLoad and AutoLoad.ConfigName == ConfigName then
+			Args:RemoveAutoLoadConfig();
+		end;
+
+		return true;
+	end;
+
+	function Args:RenameConfig(ConfigName , NewName , Author)
+		if not tostring(ConfigName or ""):byte() or not tostring(NewName or ""):byte() then
+			return false , "missing_name";
+		end;
+
+		local Data = GetConfigData(ConfigName);
+
+		if not Data then
+			return false , "missing_config";
+		end;
+
+		Data.__INFORMATION.Name = NewName;
+		Data.__INFORMATION.Author = Author or Data.__INFORMATION.Author or LocalPlayer.Name;
+		Data.__INFORMATION.UpdatedDate = Compkiller:GetDate();
+		Data.__INFORMATION.Hash = HashConfigData(Data);
+
+		local Written = WriteJson(ConfigPath(NewName) , Data);
+
+		if Written then
+			if ConfigName ~= NewName and isfile(ConfigPath(ConfigName)) then
+				delfile(ConfigPath(ConfigName));
+			end;
+
+			local AutoLoad = Args:GetAutoLoadConfig();
+
+			if AutoLoad and AutoLoad.ConfigName == ConfigName then
+				Args:SetAutoLoadConfig(NewName);
+			end;
+
+			return true , "renamed";
+		end;
+
+		return false , "write_failed";
 	end;
 
 	function Args:GetConfigCount()
-		return #listfiles(Args.Directory);
+		return #Args:GetConfigs();
 	end;
 
 	function Args:LoadConfig(ConfigName: string)
-		local _path = Compkiller:_Path(Args.Directory,ConfigName);
+		local Data = GetConfigData(ConfigName);
 
-		if isfile(_path) then
-			local info = readfile(_path);
+		if not Data then
+			return false , "missing_config";
+		end;
 
-			local decoded = HttpService:JSONDecode(info);
+		return ApplyConfigData(Data);
+	end;
 
-			local Flags = Compkiller:GetConfig("KV");
+	function Args:LoadConfigSmart(ConfigName: string)
+		local SavedHash = Args:GetConfigHash(ConfigName);
 
-			for i,v in next , decoded do
-				if v and v.Flag then
+		if not SavedHash then
+			return false , "missing_config";
+		end;
 
-					local Value = Flags[v.Flag];
+		if SavedHash == Args:GetCurrentConfigHash() then
+			return true , "skipped_same_config";
+		end;
 
-					if Value then
+		return Args:LoadConfig(ConfigName);
+	end;
 
-						if v.Value.Type == "NormalElement" then
-							task.spawn(function()
-								Value.Functions:SetValue(v.Value.Value);
-							end)
-						elseif v.Value.Type == "ColorPicker" then
+	function Args:SetAutoLoadConfig(ConfigName: string)
+		local Data = GetConfigData(ConfigName);
 
-							local Color = Color3.new(v.Value.Color3.R,v.Value.Color3.G,v.Value.Color3.B);
+		if not Data then
+			return false , "missing_config";
+		end;
 
-							local Transparency = v.Value.Transparency;
+		local Payload = {
+			Type = "AutoLoad",
+			Version = 1,
+			Enabled = true,
+			ConfigName = ConfigName,
+			ConfigHash = Args:GetConfigHash(ConfigName),
+			UpdatedDate = Compkiller:GetDate(),
+			UpdatedTime = Compkiller:GetTimeNow(),
+		};
 
-							Value.Functions:SetValue(Color, Transparency);
-						end;
-					end;
-				end
+		return WriteJson(Args.AutoLoadFile , Payload);
+	end;
+
+	function Args:RemoveAutoLoadConfig()
+		if isfile(Args.AutoLoadFile) then
+			delfile(Args.AutoLoadFile);
+		end;
+
+		return true;
+	end;
+
+	function Args:GetAutoLoadConfig()
+		local Data = ReadJson(Args.AutoLoadFile);
+
+		if typeof(Data) == "table" and Data.Type == "AutoLoad" and Data.Enabled == true and typeof(Data.ConfigName) == "string" then
+			if GetConfigData(Data.ConfigName) then
+				return Data;
 			end;
 		end;
+
+		return false;
+	end;
+
+	function Args:HasAutoLoadConfig(ConfigName)
+		local Data = Args:GetAutoLoadConfig();
+
+		return Data and Data.ConfigName == ConfigName or false;
+	end;
+
+	function Args:ApplyAutoLoadConfig()
+		local Data = Args:GetAutoLoadConfig();
+
+		if not Data then
+			return false , "no_autoload";
+		end;
+
+		local Success , Status = Args:LoadConfigSmart(Data.ConfigName);
+
+		return Success , Status , Data.ConfigName;
 	end;
 
 	return Args;
@@ -8144,11 +8548,11 @@ function Compkiller.newNotify()
 end;
 
 
---[[
-    Dummy Hub Astral extension
-    Sortable modal / priority editor foundation
-    v4: attached modal + config manager support + visual polish
-]]
+
+
+
+
+
 
 export type SortableListItem = {
     Id: string,
