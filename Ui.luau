@@ -388,7 +388,7 @@ local Mouse = LocalPlayer:GetMouse();
 local CurrentCamera = workspace.CurrentCamera;
 
 local Compkiller = {
-	Version = '1.9.0-final-quality',
+	Version = '1.9.1-ui-foundation',
 	Logo = "rbxassetid://120245531583106",
 	Windows = {},
 	Scale = {
@@ -428,7 +428,7 @@ Compkiller.UIRuntime = {
 	Failed = 0,
 	LastError = nil,
 	LastLabel = nil,
-	Connection = nil,
+	DrainScheduled = false,
 };
 
 function Compkiller:_WithUICapability(Callback, ...)
@@ -461,6 +461,31 @@ function Compkiller:_WithUICapability(Callback, ...)
 	return table.unpack(Results, 2, Results.n);
 end;
 
+function Compkiller:_DrainUIQueue()
+	if Compkiller.UIRuntime.DrainScheduled then return; end;
+	Compkiller.UIRuntime.DrainScheduled = true;
+	task.defer(function()
+		Compkiller.UIRuntime.DrainScheduled = false;
+		local Batch = Compkiller.UIRuntime.Queue;
+		Compkiller.UIRuntime.Queue = {};
+		for _, Entry in ipairs(Batch) do
+			local Ok, Error = pcall(function()
+				Compkiller:_WithUICapability(Entry.Callback);
+			end);
+			if Ok then
+				Compkiller.UIRuntime.Applied += 1;
+			else
+				Compkiller.UIRuntime.Failed += 1;
+				Compkiller.UIRuntime.LastLabel = Entry.Label;
+				Compkiller.UIRuntime.LastError = tostring(Error);
+			end;
+		end;
+		if #Compkiller.UIRuntime.Queue > 0 then
+			Compkiller:_DrainUIQueue();
+		end;
+	end);
+end;
+
 function Compkiller:_QueueUIUpdate(Label, Callback)
 	if type(Callback) ~= "function" then return false; end;
 	table.insert(Compkiller.UIRuntime.Queue, {
@@ -468,6 +493,7 @@ function Compkiller:_QueueUIUpdate(Label, Callback)
 		Callback = Callback,
 	});
 	Compkiller.UIRuntime.Queued += 1;
+	Compkiller:_DrainUIQueue();
 	return true;
 end;
 
@@ -520,24 +546,6 @@ function Compkiller:GetUIDiagnostics()
 		LastError = Compkiller.UIRuntime.LastError,
 	};
 end;
-
-Compkiller.UIRuntime.Connection = RunService.RenderStepped:Connect(function()
-	if #Compkiller.UIRuntime.Queue == 0 then return; end;
-	local Batch = Compkiller.UIRuntime.Queue;
-	Compkiller.UIRuntime.Queue = {};
-	for _, Entry in ipairs(Batch) do
-		local Ok, Error = pcall(function()
-			Compkiller:_WithUICapability(Entry.Callback);
-		end);
-		if Ok then
-			Compkiller.UIRuntime.Applied += 1;
-		else
-			Compkiller.UIRuntime.Failed += 1;
-			Compkiller.UIRuntime.LastLabel = Entry.Label;
-			Compkiller.UIRuntime.LastError = tostring(Error);
-		end;
-	end;
-end);
 
 local LucideIcons: table = loadstring(game:HttpGet('https://raw.githubusercontent.com/x2neptunereal/Alchemy/main/ui/windui/icon.lua'))();
 
@@ -725,398 +733,125 @@ function Compkiller:GetPendingConfigFlags()
 	return Result;
 end;
 
-Compkiller.WebMirror = {
-	Enabled = false,
-	Controls = {},
-	Order = {},
-	ConfigManagers = {},
-	ConfigOrder = {},
-	ChangedAt = 0,
-};
-
-function Compkiller:_WebKey(Value)
-	local Text = tostring(Value or "")
-	Text = Text:gsub("^%s+", ""):gsub("%s+$", "")
-	Text = Text:gsub("[^%w_%-%.]+", "_")
-	Text = Text:gsub("_+", "_")
-	if Text == "" then
-		Text = "item"
-	end
-	return Text
-end
-
-function Compkiller:_WebTouch()
-	if Compkiller.WebMirror then
-		Compkiller.WebMirror.ChangedAt = os.clock()
-	end
-end
-
-function Compkiller:_WebCopyList(Value)
-	local Out = {}
-	if type(Value) == "table" then
-		for i,v in next, Value do
-			if type(i) == "number" then
-				table.insert(Out, v)
-			elseif v == true then
-				table.insert(Out, i)
-			end
-		end
-	end
-	return Out
-end
-
-function Compkiller:_WebSafeValue(Value)
+function Compkiller:_ConfigSafeValue(Value, Seen)
 	if typeof(Value) == "Color3" then
-		return "#" .. Value:ToHex()
+		return "#" .. Value:ToHex();
 	elseif typeof(Value) == "EnumItem" then
-		return Value.Name
+		return Value.Name;
 	elseif type(Value) == "table" then
-		local Out = {}
-		for i,v in next, Value do
-			if typeof(v) == "Color3" then
-				Out[i] = "#" .. v:ToHex()
-			elseif typeof(v) == "EnumItem" then
-				Out[i] = v.Name
-			elseif type(v) == "table" then
-				Out[i] = Compkiller:_WebSafeValue(v)
-			elseif type(v) ~= "function" and typeof(v) ~= "Instance" then
-				Out[i] = v
-			end
-		end
-		return Out
+		Seen = Seen or {};
+		if Seen[Value] then return nil; end;
+		Seen[Value] = true;
+		local Out = {};
+		for Key, Item in next, Value do
+			if type(Item) ~= "function" and typeof(Item) ~= "Instance" then
+				Out[Key] = Compkiller:_ConfigSafeValue(Item, Seen);
+			end;
+		end;
+		Seen[Value] = nil;
+		return Out;
 	elseif type(Value) == "function" or typeof(Value) == "Instance" then
-		return nil
-	end
-	return Value
-end
+		return nil;
+	end;
+	return Value;
+end;
 
-function Compkiller:_WebReadControl(Item)
-	if not Item then return nil end
-	local Object = Item.Object
-	if Object and type(Object.GetValue) == "function" then
-		local ok, Value = pcall(function()
-			return Object:GetValue()
-		end)
-		if ok then
-			if (Item.Type == "paragraph" or Item.Type == "status" or Item.Type == "text") and type(Value) == "table" then
-				return tostring(Value.Content or Value.Text or Value.Value or "")
-			end
-			return Compkiller:_WebSafeValue(Value)
-		end
-	end
-	return Compkiller:_WebSafeValue(Item.Value)
-end
+Compkiller.PopupOwners = setmetatable({}, { __mode = "k" });
+Compkiller.WindowConnections = setmetatable({}, { __mode = "k" });
 
-function Compkiller:_WebRegisterControl(Object, Meta)
-	if not Compkiller.WebMirror or Compkiller.WebMirror.Enabled == false or type(Object) ~= "table" then
-		return Object
-	end
+function Compkiller:_InputPoint(Input)
+	if Input and Input.Position then
+		return Vector2.new(Input.Position.X, Input.Position.Y);
+	end;
+	return Vector2.new(Mouse.X, Mouse.Y);
+end;
 
-	Meta = Meta or {}
-	local Config = Meta.Config or {}
-	local Owner = Meta.Owner or {}
-	local TabName = tostring(Owner.__WebTabName or Meta.TabName or "Main")
-	local SectionName = tostring(Owner.__WebSectionName or Meta.SectionName or "Main")
-	local Label = tostring(Config.Name or Config.Title or Meta.Label or Meta.Type or "Control")
-	local Id = tostring(Meta.Id or Config.Flag or Object.Flag or (Compkiller:_WebKey(TabName) .. "." .. Compkiller:_WebKey(SectionName) .. "." .. Compkiller:_WebKey(Label)))
-	local Type = tostring(Meta.Type or "control")
+function Compkiller:_IsPointOverFrame(Frame, Point)
+	if typeof(Frame) ~= "Instance" or not Frame:IsA("GuiObject") or not Frame.Parent then return false; end;
+	local Ok, Visible, Position, Size = pcall(function()
+		return Frame.Visible, Frame.AbsolutePosition, Frame.AbsoluteSize;
+	end);
+	if not Ok or Visible == false then return false; end;
+	Point = Point or Vector2.new(Mouse.X, Mouse.Y);
+	return Point.X >= Position.X and Point.X <= Position.X + Size.X
+		and Point.Y >= Position.Y and Point.Y <= Position.Y + Size.Y;
+end;
 
-	Object.__WebMirrorId = Id
-	Object.__WebMirrorType = Type
+function Compkiller:_IsDescendantOf(Child, Parent)
+	if typeof(Child) ~= "Instance" or typeof(Parent) ~= "Instance" then return false; end;
+	local Ok, Result = pcall(function()
+		return Child == Parent or Child:IsDescendantOf(Parent);
+	end);
+	return Ok and Result == true;
+end;
 
-	local Item = Compkiller.WebMirror.Controls[Id]
-	if not Item then
-		Item = { Id = Id }
-		Compkiller.WebMirror.Controls[Id] = Item
-		table.insert(Compkiller.WebMirror.Order, Id)
-	end
+function Compkiller:_RegisterPopup(Popup, Owner)
+	if typeof(Popup) ~= "Instance" or typeof(Owner) ~= "Instance" then return Popup; end;
+	Compkiller.PopupOwners[Popup] = Owner;
+	Popup.Destroying:Connect(function()
+		Compkiller.PopupOwners[Popup] = nil;
+	end);
+	return Popup;
+end;
 
-	Item.Id = Id
-	Item.Type = Type
-	Item.Label = Label
-	Item.Tab = TabName
-	Item.TabKey = tostring(Owner.__WebTabKey or Meta.TabKey or Compkiller:_WebKey(TabName))
-	Item.Section = SectionName
-	Item.SectionKey = tostring(Owner.__WebSectionKey or Meta.SectionKey or Compkiller:_WebKey(SectionName))
-	Item.Position = Owner.__WebSectionPosition or Meta.Position
-	Item.Object = Object
-	Item.Flag = Config.Flag or Object.Flag
-	Item.Options = Compkiller:_WebCopyList(Config.Values or Config.Options)
-	Item.Multi = Config.Multi == true
-	Item.Min = Config.Min
-	Item.Max = Config.Max
-	Item.Round = Config.Round
-	Item.Suffix = Config.Type or Config.Suffix or ""
-	Item.Numeric = Config.Numeric == true or Config.Numberic == true
-	Item.Value = Compkiller:_WebSafeValue(Config.Default or Config.Value or Config.Content)
+function Compkiller:_PopupBelongsToRoot(Popup, Root, Seen)
+	Seen = Seen or {};
+	if Seen[Popup] then return false; end;
+	Seen[Popup] = true;
+	local Owner = Compkiller.PopupOwners[Popup];
+	if not Owner then return false; end;
+	if Compkiller:_IsDescendantOf(Owner, Root) then return true; end;
+	for ParentPopup in pairs(Compkiller.PopupOwners) do
+		if ParentPopup ~= Popup and Compkiller:_IsDescendantOf(Owner, ParentPopup) then
+			if Compkiller:_PopupBelongsToRoot(ParentPopup, Root, Seen) then return true; end;
+		end;
+	end;
+	return false;
+end;
 
-	Compkiller:_WebTouch()
-	return Object
-end
+function Compkiller:_IsInputInsidePopupTree(Input, Root, Trigger)
+	local Point = Compkiller:_InputPoint(Input);
+	if Compkiller:_IsPointOverFrame(Root, Point) or Compkiller:_IsPointOverFrame(Trigger, Point) then
+		return true;
+	end;
+	for Popup in pairs(Compkiller.PopupOwners) do
+		if Compkiller:_IsPointOverFrame(Popup, Point) and Compkiller:_PopupBelongsToRoot(Popup, Root) then
+			return true;
+		end;
+	end;
+	return false;
+end;
 
-function Compkiller:_WebConfigSnapshot(Config)
-	local Snapshot = {
-		configs = {},
-		autoLoad = nil,
-		count = 0,
-	}
-	if type(Config) ~= "table" then
-		return Snapshot
-	end
+function Compkiller:_TrackWindowConnection(Target, Connection)
+	if not Connection then return Connection; end;
+	local Window = nil;
+	if typeof(Target) == "Instance" then
+		if Target:IsA("ScreenGui") then
+			Window = Target;
+		else
+			Window = Compkiller:_GetWindowFromElement(Target);
+		end;
+	end;
+	if not Window then return Connection; end;
+	local Bucket = Compkiller.WindowConnections[Window];
+	if not Bucket then
+		Bucket = {};
+		Compkiller.WindowConnections[Window] = Bucket;
+		Window.Destroying:Connect(function()
+			Compkiller:_DisconnectWindowConnections(Window);
+		end);
+	end;
+	Bucket[Connection] = true;
+	return Connection;
+end;
 
-	local Full = nil
-	if type(Config.GetFullConfigs) == "function" then
-		local ok, Result = pcall(function()
-			return Config:GetFullConfigs()
-		end)
-		if ok then Full = Result end
-	end
-	if type(Full) ~= "table" and type(Config.GetConfigs) == "function" then
-		local ok, Result = pcall(function()
-			return Config:GetConfigs()
-		end)
-		if ok and type(Result) == "table" then
-			Full = {}
-			for _, Name in ipairs(Result) do
-				table.insert(Full, { Name = Name, Info = { Author = "" } })
-			end
-		end
-	end
-
-	local AutoLoad = nil
-	if type(Config.GetAutoLoadConfig) == "function" then
-		local ok, Result = pcall(function()
-			return Config:GetAutoLoadConfig()
-		end)
-		if ok then
-			if type(Result) == "table" then
-				AutoLoad = tostring(Result.ConfigName or Result.Name or "")
-			elseif Result ~= false and Result ~= nil then
-				AutoLoad = tostring(Result)
-			end
-		end
-	end
-	if AutoLoad == "" then AutoLoad = nil end
-	Snapshot.autoLoad = AutoLoad
-
-	if type(Full) == "table" then
-		for _, Entry in ipairs(Full) do
-			local Name = tostring(Entry.Name or (Entry.Info and Entry.Info.Name) or "")
-			if Name ~= "" then
-				local Author = ""
-				if type(Entry.Info) == "table" then
-					Author = tostring(Entry.Info.Author or "")
-				end
-				local IsAuto = false
-				if type(Config.HasAutoLoadConfig) == "function" then
-					local ok, Result = pcall(function()
-						return Config:HasAutoLoadConfig(Name)
-					end)
-					IsAuto = ok and Result == true
-				else
-					IsAuto = AutoLoad == Name
-				end
-				table.insert(Snapshot.configs, {
-					name = Name,
-					author = Author,
-					autoLoad = IsAuto,
-				})
-			end
-		end
-	end
-	Snapshot.count = #Snapshot.configs
-	return Snapshot
-end
-
-function Compkiller:_WebRegisterConfigManager(Object, Meta)
-	if not Compkiller.WebMirror or Compkiller.WebMirror.Enabled == false then
-		return Object
-	end
-	Meta = Meta or {}
-	local Config = Meta.Config
-	local Label = tostring(Meta.Name or "Config")
-	local Id = tostring(Meta.Id or ("config." .. Compkiller:_WebKey(Label)))
-
-	Object.__WebMirrorId = Id
-	Object.__WebMirrorType = "configManager"
-
-	local Item = Compkiller.WebMirror.ConfigManagers[Id]
-	if not Item then
-		Item = { Id = Id }
-		Compkiller.WebMirror.ConfigManagers[Id] = Item
-		table.insert(Compkiller.WebMirror.ConfigOrder, Id)
-	end
-
-	Item.Id = Id
-	Item.Type = "configManager"
-	Item.Label = Label
-	Item.Tab = Label
-	Item.TabKey = Compkiller:_WebKey(Label)
-	Item.Section = "Manager"
-	Item.SectionKey = "manager"
-	Item.Object = Object
-	Item.Config = Config
-	Item.Value = Compkiller:_WebConfigSnapshot(Config)
-
-	Compkiller:_WebTouch()
-	return Object
-end
-
-function Compkiller:GetWebSchema()
-	local Tabs = {}
-	local TabsByKey = {}
-	local function GetTab(Key, Label)
-		local Tab = TabsByKey[Key]
-		if not Tab then
-			Tab = { key = Key, label = Label, groups = {}, __groups = {} }
-			TabsByKey[Key] = Tab
-			table.insert(Tabs, Tab)
-		end
-		return Tab
-	end
-	local function GetGroup(Tab, Key, Label)
-		local Group = Tab.__groups[Key]
-		if not Group then
-			Group = { key = Key, label = Label, controls = {} }
-			Tab.__groups[Key] = Group
-			table.insert(Tab.groups, Group)
-		end
-		return Group
-	end
-
-	for _, Id in ipairs(Compkiller.WebMirror.Order) do
-		local Item = Compkiller.WebMirror.Controls[Id]
-		if Item then
-			local Tab = GetTab(Item.TabKey, Item.Tab)
-			local Group = GetGroup(Tab, Item.SectionKey, Item.Section)
-			local Control = {
-				id = Item.Id,
-				label = Item.Label,
-				type = Item.Type,
-				value = Compkiller:_WebReadControl(Item),
-				flag = Item.Flag,
-			}
-			if Item.Options and #Item.Options > 0 then Control.options = Item.Options end
-			if Item.Multi then Control.multi = true end
-			if Item.Min ~= nil then Control.min = Item.Min end
-			if Item.Max ~= nil then Control.max = Item.Max end
-			if Item.Round ~= nil then Control.round = Item.Round end
-			if Item.Suffix and Item.Suffix ~= "" then Control.suffix = Item.Suffix end
-			if Item.Numeric then Control.numeric = true end
-			table.insert(Group.controls, Control)
-		end
-	end
-
-	for _, Id in ipairs(Compkiller.WebMirror.ConfigOrder) do
-		local Item = Compkiller.WebMirror.ConfigManagers[Id]
-		if Item then
-			local Tab = GetTab(Item.TabKey, Item.Tab)
-			local Group = GetGroup(Tab, Item.SectionKey, Item.Section)
-			Item.Value = Compkiller:_WebConfigSnapshot(Item.Config)
-			table.insert(Group.controls, {
-				id = Item.Id,
-				label = Item.Label,
-				type = "configManager",
-				value = Item.Value,
-				configs = Item.Value.configs,
-				autoLoad = Item.Value.autoLoad,
-				count = Item.Value.count,
-			})
-		end
-	end
-
-	for _, Tab in ipairs(Tabs) do
-		Tab.__groups = nil
-	end
-
-	return {
-		version = Compkiller.Version,
-		changedAt = Compkiller.WebMirror.ChangedAt,
-		tabs = Tabs,
-	}
-end
-
-function Compkiller:GetWebValues()
-	local Values = {}
-	for _, Id in ipairs(Compkiller.WebMirror.Order) do
-		local Item = Compkiller.WebMirror.Controls[Id]
-		if Item then
-			Values[Id] = Compkiller:_WebReadControl(Item)
-		end
-	end
-	return Values
-end
-
-function Compkiller:ApplyWebCommand(Command)
-	Command = Command or {}
-	local Id = tostring(Command.controlId or Command.id or "")
-	local Value = Command.value
-	local Action = tostring(Command.action or (type(Value) == "table" and Value.action) or Command.type or "set")
-
-	local Control = Compkiller.WebMirror.Controls[Id]
-	if Control and Control.Object then
-		if Control.Type == "button" or Action == "click" then
-			if type(Control.Object.Click) == "function" then
-				Control.Object:Click()
-				Compkiller:_WebTouch()
-				return true, "clicked"
-			end
-			return false, "button_click_unavailable"
-		end
-		if type(Control.Object.SetValue) == "function" then
-			local ok, err = pcall(function()
-				Control.Object:SetValue(Value)
-			end)
-			if ok then
-				Compkiller:_WebTouch()
-				return true, "applied"
-			end
-			return false, tostring(err or "set_failed")
-		end
-		return false, "set_unavailable"
-	end
-
-	local Manager = Compkiller.WebMirror.ConfigManagers[Id]
-	if Manager and Manager.Config then
-		local Config = Manager.Config
-		local Name = tostring(Command.configName or (type(Value) == "table" and Value.name) or Command.name or "")
-		local Author = tostring(Command.author or (type(Value) == "table" and Value.author) or (Players.LocalPlayer and Players.LocalPlayer.Name) or "")
-		local ok, result = pcall(function()
-			if Action == "save" or Action == "create" or Action == "add" then
-				return Config:WriteConfig({ Name = Name, Author = Author })
-			elseif Action == "load" then
-				if type(Config.LoadConfigSmart) == "function" then
-					return Config:LoadConfigSmart(Name)
-				end
-				return Config:LoadConfig(Name)
-			elseif Action == "setAutoLoad" or Action == "auto" then
-				return Config:SetAutoLoadConfig(Name)
-			elseif Action == "clearAutoLoad" or Action == "removeAutoLoad" then
-				return Config:RemoveAutoLoadConfig()
-			elseif Action == "delete" then
-				return Config:DeleteConfig(Name)
-			end
-			return false, "unknown_config_action"
-		end)
-		if ok then
-			if Manager.Object and type(Manager.Object.RefreshConfigs) == "function" then
-				pcall(function()
-					Manager.Object:RefreshConfigs()
-				end)
-			elseif Manager.Object and type(Manager.Object.Refresh) == "function" then
-				pcall(function()
-					Manager.Object:Refresh()
-				end)
-			end
-			Compkiller:_WebTouch()
-			return true, tostring(result or "config_applied")
-		end
-		return false, tostring(result or "config_failed")
-	end
-
-	return false, "unknown_control"
-end
-
+function Compkiller:_DisconnectWindowConnections(Window)
+	local Bucket = Compkiller.WindowConnections[Window];
+	Compkiller.WindowConnections[Window] = nil;
+	for Connection in pairs(Bucket or {}) do
+		pcall(function() Connection:Disconnect(); end);
+	end;
+end;
 
 Compkiller.Lucide = {
 	GetAsset = function(p : string)
@@ -1197,15 +932,7 @@ function Compkiller:_ConvertArgs(Config: table)
 end
 
 function Compkiller:_IsMouseOverFrame(Frame : Frame) : boolean
-	if not Frame then
-		return;
-	end;
-
-	local AbsPos: Vector2, AbsSize: Vector2 = Frame.AbsolutePosition, Frame.AbsoluteSize;
-
-	if Mouse.X >= AbsPos.X and Mouse.X <= AbsPos.X + AbsSize.X and Mouse.Y >= AbsPos.Y and Mouse.Y <= AbsPos.Y + AbsSize.Y then
-		return true;
-	end;
+	return Compkiller:_IsPointOverFrame(Frame, Vector2.new(Mouse.X, Mouse.Y));
 end;
 
 function Compkiller:_Rounding(num: number, numDecimalPlaces: number) : number
@@ -1349,22 +1076,18 @@ end;
 function Compkiller:_AddDragBlacklist(Frame: Frame)
 	Frame.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseMovement then
-			local finder = table.find(Compkiller.DragBlacklist , Frame);
-			local IsScrolling = Frame:IsA('ScrollingFrame') and Frame.ScrollingEnabled;
-
-			if not finder or IsScrolling then
-				table.insert(Compkiller.DragBlacklist , Frame);
+			local Finder = table.find(Compkiller.DragBlacklist, Frame);
+			if not Finder then
+				table.insert(Compkiller.DragBlacklist, Frame);
 			end;
 		end;
 	end);
 
 	Frame.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseMovement then
-			local finder = table.find(Compkiller.DragBlacklist , Frame);
-			local IsScrolling = Frame:IsA('ScrollingFrame') and Frame.ScrollingEnabled;
-
-			if finder or IsScrolling then
-				table.remove(Compkiller.DragBlacklist , finder);
+			local Finder = table.find(Compkiller.DragBlacklist, Frame);
+			if Finder then
+				table.remove(Compkiller.DragBlacklist, Finder);
 			end;
 		end;
 	end);
@@ -1411,6 +1134,14 @@ function Compkiller.__SIGNAL(default)
 
 	function Binds:GetValue()
 		return Bindable:GetAttribute("Value");
+	end;
+
+	function Binds:Destroy()
+		for _, Signal in ipairs(Binds.__signals) do
+			pcall(function() Signal:Disconnect(); end);
+		end;
+		Binds.__signals = {};
+		pcall(function() Bindable:Destroy(); end);
 	end;
 
 	return Binds;
@@ -1463,17 +1194,16 @@ function Compkiller:Drag(InputFrame: Frame, MoveFrame: Frame, Speed : number)
 		end
 	end)
 
-	UserInputService.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch and #Compkiller.DragBlacklist <= 0 then
+	Compkiller:_TrackWindowConnection(MoveFrame, UserInputService.InputChanged:Connect(function(input)
+		local IsPointerMovement = input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch;
+		if IsPointerMovement and #Compkiller.DragBlacklist <= 0 then
 			if dragToggle then
 				updateInput(input)
 			end
-		else
-			if #Compkiller.DragBlacklist > 0 then
-				dragToggle = false
-			end
+		elseif #Compkiller.DragBlacklist > 0 then
+			dragToggle = false
 		end
-	end);
+	end));
 end;
 
 function Compkiller:_IsMobile()
@@ -2160,6 +1890,7 @@ function Compkiller:_AddColorPickerPanel(Button: ImageButton , Callback: (Color:
 	ColorPickerWindow.ZIndex = BaseZ_Index
 	ColorPickerWindow.AnchorPoint = Vector2.new(0.5,0)
 	ColorPickerWindow.Active = true;
+	Compkiller:_RegisterPopup(ColorPickerWindow, Button);
 	
 	table.insert(Compkiller.Elements.BlockBackground,{
 		Element = ColorPickerWindow,
@@ -2652,13 +2383,13 @@ function Compkiller:_AddColorPickerPanel(Button: ImageButton , Callback: (Color:
 		end;
 	end)
 
-	UserInputService.InputBegan:Connect(function(Input)
+	Compkiller:_TrackWindowConnection(Window, UserInputService.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-			if not Compkiller:_IsMouseOverFrame(ColorPickerWindow) then
+			if not Compkiller:_IsInputInsidePopupTree(Input, ColorPickerWindow, Button) then
 				ToggleUI(false);
 			end;
 		end;
-	end)
+	end));
 
 	ColorRedGreenBlue.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
@@ -3066,6 +2797,8 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		ExtractElement.ZIndex = BaseZ_Index
 		ExtractElement.Visible = false
 		ExtractElement.ClipsDescendants = true
+		ExtractElement.Active = true
+		Compkiller:_RegisterPopup(ExtractElement, Element);
 		
 		table.insert(Compkiller.Elements.BlockBackground,{
 			Element = ExtractElement,
@@ -3110,13 +2843,13 @@ function Compkiller:_LoadOption(Value , TabSignal)
 			end;
 		end);
 
-		UserInputService.InputBegan:Connect(function(Input)
+		Compkiller:_TrackWindowConnection(Window, UserInputService.InputBegan:Connect(function(Input)
 			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-				if Toggl and not Compkiller:_IsMouseOverFrame(ExtractElement) and not Compkiller:_IsMouseOverFrame(Element) then
+				if Toggl and not Compkiller:_IsInputInsidePopupTree(Input, ExtractElement, Element) then
 					ToggleUI(false);
 				end;
 			end
-		end)		
+		end));		
 
 		return Compkiller:_LoadElement(Elements , true , Signal)
 	end;
@@ -3145,6 +2878,8 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	DropdownWindow.Position = UDim2.new(123, 0, 123, 0)
 	DropdownWindow.Size = UDim2.new(0, 190, 0, 200)
 	DropdownWindow.ZIndex = BaseZ_Index
+	DropdownWindow.Active = true
+	Compkiller:_RegisterPopup(DropdownWindow, BaseParent);
 	
 	table.insert(Compkiller.Elements.BlockBackground,{
 		Element = DropdownWindow,
@@ -3243,6 +2978,9 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	local Default = nil;
 	local Values = nil;
 	local IsMulti = false;
+	local CurrentMulti = {};
+	local ButtonsByValue = {};
+	local SelectedButton = nil;
 
 	local DrawButton = function()
 		local DropdownItem = Instance.new("Frame")
@@ -3264,19 +3002,19 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 		BlockText.BorderSizePixel = 0
 		BlockText.Position = UDim2.new(0, 5, 0.5, 0)
 		BlockText.Size = UDim2.new(1, -10, 0, 25)
-		BlockText.ZIndex = BaseZ_Index + 6 
+		BlockText.ZIndex = BaseZ_Index + 6
 		BlockText.Font = Enum.Font.GothamMedium
 		BlockText.Text = ""
 		BlockText.TextColor3 = Compkiller.Colors.SwitchColor
 		BlockText.TextSize = 13.000
 		BlockText.TextTransparency = 0.500
 		BlockText.TextXAlignment = Enum.TextXAlignment.Left
-		
+
 		table.insert(Compkiller.Elements.SwitchColor , {
 			Element = BlockText,
 			Property = 'TextColor3'
 		});
-		
+
 		BlockLine.Name = "BlockLine"
 		BlockLine.Parent = DropdownItem
 		BlockLine.AnchorPoint = Vector2.new(0.5, 1)
@@ -3287,7 +3025,7 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 		BlockLine.Position = UDim2.new(0.5, 0, 1, 0)
 		BlockLine.Size = UDim2.new(1, -6, 0, 1)
 		BlockLine.ZIndex = BaseZ_Index + 7
-		
+
 		table.insert(Compkiller.Elements.LineColor,{
 			Element = BlockLine,
 			Property = "BackgroundColor3"
@@ -3301,105 +3039,80 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	end;
 
 	local ClearDropdown = function()
-		for i,v in next , ScrollingFrame:GetChildren() do
-			if v:IsA('Frame') then
-				v:Destroy();
+		for _, Child in next, ScrollingFrame:GetChildren() do
+			if Child:IsA('Frame') then
+				Child:Destroy();
 			end;
 		end;
-
-		for i,v in next,  __signals do
-			v:Disconnect();
+		for _, Connection in next, __signals do
+			Connection:Disconnect();
 		end;
+		__signals = {};
+		ButtonsByValue = {};
+		SelectedButton = nil;
 	end;
 
-	local IsDefault = function(v)
-		return (typeof(Default) == 'table' and (Default[v] or table.find(Default,v))) or Default == v;
+	local function IsDefault(Value)
+		return (typeof(Default) == 'table' and (Default[Value] == true or table.find(Default, Value) ~= nil)) or Default == Value;
 	end;
 
-	local MatchDefault = function(v,DataFrame)
-		return (typeof(DataFrame) == 'table' and (DataFrame[v] or table.find(DataFrame,v))) or DataFrame == v;
+	local function IsSelected(Value)
+		if IsMulti then return CurrentMulti[Value] == true; end;
+		return Default == Value;
+	end;
+
+	local function ApplyButtonStyle(ButtonData, Selected, Visible)
+		if not ButtonData then return; end;
+		Compkiller:_Animation(ButtonData.BlockText, TweenInfo.new(0.2), {
+			TextTransparency = Visible and (Selected and 0 or 0.5) or 1
+		});
+		Compkiller:_Animation(ButtonData.BlockLine, TweenInfo.new(0.2), {
+			BackgroundTransparency = Visible and 0 or 1
+		});
+	end;
+
+	local function RefreshSelectionStyles()
+		local Visible = ToggleDb:GetValue() == true;
+		for Value, ButtonData in pairs(ButtonsByValue) do
+			ApplyButtonStyle(ButtonData, IsSelected(Value), Visible);
+		end;
 	end;
 
 	local UpdateDropdown = function()
-		local DataFrame;
+		CurrentMulti = {};
+		for _, Value in next, Values or {} do
+			if IsMulti and IsDefault(Value) then CurrentMulti[Value] = true; end;
+			local ButtonData = DrawButton();
+			ButtonData.BlockText.Text = tostring(Value);
+			ButtonData.DropdownItem.Parent = ScrollingFrame;
+			ButtonData.Value = Value;
+			ButtonsByValue[Value] = ButtonData;
+			if not IsMulti and Default == Value then SelectedButton = ButtonData; end;
 
-		if IsMulti then
-			DataFrame = {};
-		end;
-
-		for i,v in next , Values do
-			local bth = DrawButton();
-
-			bth.BlockText.Text = tostring(v);
-
-			bth.DropdownItem.Parent = ScrollingFrame;
-
-			bth.Value = v;
-
-			table.insert(__signals , ToggleDb:Connect(function(bool)
-				if bool then
-					Compkiller:_Animation(bth.BlockText,TweenInfo.new(0.2),{
-						TextTransparency = ((IsDefault(v) or MatchDefault(v,DataFrame)) and 0) or 0.5
-					});
-
-					Compkiller:_Animation(bth.BlockLine,TweenInfo.new(0.2),{
-						BackgroundTransparency = 0
-					});
-				else
-					Compkiller:_Animation(bth.BlockText,TweenInfo.new(0.2),{
-						TextTransparency = 1
-					});
-
-					Compkiller:_Animation(bth.BlockLine,TweenInfo.new(0.2),{
-						BackgroundTransparency = 1
-					});
-				end;
+			table.insert(__signals, ToggleDb:Connect(function()
+				RefreshSelectionStyles();
 			end));
 
-			if ToggleDb:GetValue() then
-				Compkiller:_Animation(bth.BlockText,TweenInfo.new(0.2),{
-					TextTransparency = ((IsDefault(v) or MatchDefault(v,DataFrame)) and 0) or 0.5
-				});
-			end;
-
-			if IsDefault(v) and not IsMulti then
-				DataFrame = bth;
-			end;
-
 			if IsMulti then
-				if IsDefault(v) or MatchDefault(v,DataFrame) then
-					DataFrame[v] = true;
-				end;
-
-				Compkiller:_Input(bth.DropdownItem,function()
-					DataFrame[v] = not DataFrame[v]
-
-					Compkiller:_Animation(bth.BlockText,TweenInfo.new(0.2),{
-						TextTransparency = ((IsDefault(v) or MatchDefault(v,DataFrame)) and 0) or 0.5
-					});
-
-					Callback(DataFrame)
+				Compkiller:_Input(ButtonData.DropdownItem, function()
+					CurrentMulti[Value] = not CurrentMulti[Value];
+					ApplyButtonStyle(ButtonData, CurrentMulti[Value] == true, true);
+					Callback(CurrentMulti);
 				end);
 			else
-				Compkiller:_Input(bth.DropdownItem,function()
-					if DataFrame then
-						Compkiller:_Animation(DataFrame.BlockText,TweenInfo.new(0.2),{
-							TextTransparency = ((IsDefault(v) or MatchDefault(v,DataFrame)) and 0) or 0.5
-						});
+				Compkiller:_Input(ButtonData.DropdownItem, function()
+					local Previous = SelectedButton;
+					Default = Value;
+					SelectedButton = ButtonData;
+					if Previous and Previous ~= ButtonData then
+						ApplyButtonStyle(Previous, false, true);
 					end;
-
-					Default = v;
-
-					DataFrame = bth;
-
-					Compkiller:_Animation(bth.BlockText,TweenInfo.new(0.2),{
-						TextTransparency = ((IsDefault(v) or MatchDefault(v,DataFrame)) and 0) or 0.5
-					});
-
-					Callback(DataFrame.Value)
+					ApplyButtonStyle(ButtonData, true, true);
+					Callback(Value);
 				end);
 			end;
 		end;
+		RefreshSelectionStyles();
 	end;
 
 	BaseParent.MouseButton1Click:Connect(function()
@@ -3419,35 +3132,47 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 		end;
 	end);
 
-	UserInputService.InputBegan:Connect(function(Input)
+	Compkiller:_TrackWindowConnection(Window, UserInputService.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-			if not Compkiller:_IsMouseOverFrame(DropdownWindow) and not Compkiller:_IsMouseOverFrame(BaseParent) then
+			if not Compkiller:_IsInputInsidePopupTree(Input, DropdownWindow, BaseParent) then
 				ToggleUI(false);
 			end;
 		end;
-	end);
+	end));
 
 	local Args = {};
 
-	function Args:SetDefault(v)
-		Default = v;
+	function Args:SetDefault(Value)
+		Default = Value;
+		if IsMulti then
+			CurrentMulti = {};
+			for _, Item in next, Values or {} do
+				if IsDefault(Item) then CurrentMulti[Item] = true; end;
+			end;
+		else
+			SelectedButton = ButtonsByValue[Value];
+		end;
+		RefreshSelectionStyles();
 	end;
 
-	function Args:SetData(Def,Val,Multi,Vis)
+	function Args:SetData(Def, Val, Multi, Vis)
+		Val = type(Val) == "table" and Val or {};
 		if Vis and ((tick() - _Delay) <= 0.5 or #Val > 10) then
 			_Delay = tick();
 			SpamUpdate = true;
 		else
-			SpamUpdate = false;	
+			SpamUpdate = false;
 		end;
 
-		IsMulti = Multi;
+		IsMulti = Multi == true;
 		Default = Def;
 		Values = Val;
 
 		if Vis and not SpamUpdate then
 			ClearDropdown();
 			UpdateDropdown();
+		else
+			RefreshSelectionStyles();
 		end;
 	end;
 
@@ -3540,7 +3265,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Compkiller:RegisterFlag(Config.Flag, Args, { Type = "toggle", Order = tonumber(Config.ConfigOrder) });
 		end;
 
-		Compkiller:_WebRegisterControl(Args, { Type = "toggle", Config = Config, Owner = self });
 
 		return Args;
 	end;
@@ -3632,7 +3356,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Compkiller:RegisterFlag(Config.Flag, Args, { Type = "keybind", Order = tonumber(Config.ConfigOrder) });
 		end;
 
-		Compkiller:_WebRegisterControl(Args, { Type = "keybind", Config = Config, Owner = self });
 
 		return Args;
 	end;
@@ -3706,7 +3429,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Compkiller:RegisterFlag(Config.Flag, Args, { Type = "colorpicker", Order = tonumber(Config.ConfigOrder) });
 		end;
 
-		Compkiller:_WebRegisterControl(Args, { Type = "colorpicker", Config = Config, Owner = self });
 
 		return Args;
 	end;
@@ -3993,7 +3715,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		if Config.Flag then
 			Compkiller:RegisterFlag(Config.Flag, Args, { Type = "button", Order = 1000 });
 		end;
-		Compkiller:_WebRegisterControl(Args, { Type = "button", Config = Config, Owner = self });
 		return Args;
 	end;
 
@@ -4200,7 +3921,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		ApplyOpenState(false);
 		Compkiller:_GuardUIObject(API, { "SetText", "SetPreview", "SetOpen", "SetEnabled" });
 		if Config.Flag then Compkiller:RegisterFlag(Config.Flag, API, { Type = "editor", Order = 1000 }); end;
-		Compkiller:_WebRegisterControl(API, { Type = "editor", Config = Config, Owner = self });
 		return API;
 	end;
 
@@ -4285,7 +4005,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		function API:SetVisible(Value) Root.Visible = Value == true end;
 		API.Signal = Signal:Connect(function(Value) Root.Visible = Value == true end);
 		Root.Visible = Signal:GetValue();
-		Compkiller:_WebRegisterControl(API, { Type = "empty", Config = Config, Owner = self });
 		return API;
 	end;
 
@@ -4527,11 +4246,11 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 				end
 			end)
 
-			UserInputService.InputChanged:Connect(function(Input)
+			Compkiller:_TrackWindowConnection(SliderBar, UserInputService.InputChanged:Connect(function(Input)
 				if IsHold then
-					if (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch)  then
+					if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
 						if UserInputService.TouchEnabled then
-							if not Compkiller:_IsMouseOverFrame(SliderBar) then
+							if not Compkiller:_IsPointOverFrame(SliderBar, Compkiller:_InputPoint(Input)) then
 								IsHold = false
 							else
 								Update(Input)
@@ -4541,7 +4260,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 						end;
 					end;
 				end;
-			end);
+			end));
 		end;
 
 		local Args = {};
@@ -4636,7 +4355,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Compkiller:RegisterFlag(Config.Flag, Args, { Type = "slider", Order = tonumber(Config.ConfigOrder) or 30 });
 		end;
 
-		Compkiller:_WebRegisterControl(Args, { Type = "slider", Config = Config, Owner = self });
 
 		return Args;
 	end;
@@ -4789,7 +4507,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			end;
 		end);
 
-		Compkiller:_WebRegisterControl(Args, { Type = "paragraph", Config = Config, Owner = self });
 
 		return Args;
 	end;
@@ -5012,7 +4729,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Compkiller:RegisterFlag(Config.Flag, Args, { Type = "textbox", Order = tonumber(Config.ConfigOrder) or 20 });
 		end;
 
-		Compkiller:_WebRegisterControl(Args, { Type = "textbox", Config = Config, Owner = self });
 
 		return Args;
 	end;
@@ -5356,7 +5072,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Compkiller:RegisterFlag(Config.Flag, Args, { Type = Config.Multi and "multiselect" or "dropdown", Order = tonumber(Config.ConfigOrder) or 20 });
 		end;
 
-		Compkiller:_WebRegisterControl(Args, { Type = Config.Multi and "multiselect" or "dropdown", Config = Config, Owner = self });
 
 		return Args;
 	end;
@@ -5596,7 +5311,9 @@ function Compkiller.new(Config : Window)
 		LastTab = nil,
 		IsOpen = true,
 		AlwayShowTab = false,
-		THREADS = {}
+		THREADS = {},
+		CONNECTIONS = {},
+		Destroyed = false
 	};
 
 	WindowArgs.Username = LocalPlayer.Name;
@@ -6234,7 +5951,7 @@ function Compkiller.new(Config : Window)
 
 		local TabOpen = function(bool)
 			if bool then
-				WindowArgs.SelectedTab = TabButton;
+				WindowArgs:SetSelectedTab(TabButton);
 
 				Compkiller:_Animation(Icon,Tween,{
 					ImageTransparency = 0,
@@ -6540,36 +6257,33 @@ function Compkiller.new(Config : Window)
 		return TabArgs;
 	end;
 
-	function WindowArgs:AddUnbind(UilistLayout: UIListLayout , Scrolling)
+	function WindowArgs:AddUnbind(UilistLayout: UIListLayout, Scrolling)
+		local Parent: ScrollingFrame = UilistLayout and UilistLayout.Parent or Scrolling;
+		if not Parent or not Parent:IsA("ScrollingFrame") then return nil; end;
+		local Pending = false;
 
-		local Parent: ScrollingFrame = UilistLayout.Parent;
-
-		Parent = Parent or Scrolling;
-
-		local Detection = function()
-			local Target = (UilistLayout.AbsoluteContentSize.Y);
-
-			for i,v in next , Parent:GetChildren() do task.wait(0.1)
-				local UIList = v:FindFirstChildWhichIsA('UIListLayout');
-				if v:IsA('Frame') and UIList then
-					if (UIList.AbsoluteContentSize.Y >= Target) or (v.AbsoluteSize.Y >= Target) or (UilistLayout.AbsoluteContentSize.Y > Parent.AbsoluteSize.Y) then
-						UilistLayout.VerticalFlex = Enum.UIFlexAlignment.None;
-						Parent.ScrollingEnabled = true;
-					else
-						Parent.ScrollingEnabled = false;
-						UilistLayout.VerticalFlex = Enum.UIFlexAlignment.None;
-					end;
-				end
-			end;
+		local function ApplyLayout()
+			Pending = false;
+			if WindowArgs.Destroyed or not Parent.Parent or not UilistLayout.Parent then return; end;
+			local ContentHeight = math.max(0, UilistLayout.AbsoluteContentSize.Y);
+			UilistLayout.VerticalFlex = Enum.UIFlexAlignment.None;
+			Parent.CanvasSize = UDim2.fromOffset(0, ContentHeight);
+			Parent.ScrollingEnabled = ContentHeight > Parent.AbsoluteSize.Y + 1;
 		end;
 
-		local Executable = function()
-			while true do task.wait(0.15);
-				pcall(Detection);
-			end;
+		local function QueueLayout()
+			if Pending or WindowArgs.Destroyed then return; end;
+			Pending = true;
+			task.defer(function()
+				pcall(ApplyLayout);
+			end);
 		end;
 
-		table.insert(WindowArgs.THREADS,task.spawn(Executable))
+		table.insert(WindowArgs.CONNECTIONS, UilistLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(QueueLayout));
+		table.insert(WindowArgs.CONNECTIONS, Parent:GetPropertyChangedSignal("AbsoluteSize"):Connect(QueueLayout));
+		table.insert(WindowArgs.CONNECTIONS, Parent:GetPropertyChangedSignal("Visible"):Connect(QueueLayout));
+		QueueLayout();
+		return QueueLayout;
 	end;
 
 	function WindowArgs:DrawConfig(Configuration : TabConfigManager , Internal)
@@ -6982,7 +6696,7 @@ function Compkiller.new(Config : Window)
 		local TabOpen = function(bool)
 			if bool then
 
-				WindowArgs.SelectedTab = TabButton;
+				WindowArgs:SetSelectedTab(TabButton);
 
 				Compkiller:_Animation(Icon,Tween,{
 					ImageTransparency = 0,
@@ -7910,7 +7624,6 @@ function Compkiller.new(Config : Window)
 			TabArgs.RefreshConfigs = Refresh;
 			Runtime.Refresh = Refresh;
 			Runtime.RefreshConfigs = Refresh;
-			Compkiller:_WebRegisterConfigManager(TabArgs, { Name = Configuration.Name, Config = Configuration.Config });
 
 			SafeCall("Refresh", Refresh);
 			SafeCall("AutoLoad", function()
@@ -8224,7 +7937,7 @@ function Compkiller.new(Config : Window)
 			local TabOpen = function(bool)
 				if bool then
 
-					WindowArgs.SelectedTab = TabButton;
+					WindowArgs:SetSelectedTab(TabButton);
 
 					Compkiller:_Animation(Icon,Tween,{
 						ImageTransparency = 0,
@@ -8355,8 +8068,6 @@ function Compkiller.new(Config : Window)
 
 		end;
 
-		TabArgs.__WebTabName = TabConfig.Name;
-		TabArgs.__WebTabKey = Compkiller:_WebKey(TabConfig.Name);
 
 		local lastSection = 'right';
 
@@ -8513,11 +8224,6 @@ function Compkiller.new(Config : Window)
 
 			local SectionArgs = Compkiller:_LoadElement(Section , true , TabOpenSignal)
 			SectionArgs.__MainFrame = Section
-			SectionArgs.__WebTabName = TabArgs.__WebTabName or TabConfig.Name
-			SectionArgs.__WebTabKey = TabArgs.__WebTabKey or Compkiller:_WebKey(TabConfig.Name)
-			SectionArgs.__WebSectionName = config.Name
-			SectionArgs.__WebSectionKey = Compkiller:_WebKey(config.Name)
-			SectionArgs.__WebSectionPosition = config.Position
 			return SectionArgs
 		end;
 
@@ -8811,13 +8517,13 @@ function Compkiller.new(Config : Window)
 			end;
 		end);
 
-		UserInputService.InputChanged:Connect(function(Input)
+		Compkiller:_TrackWindowConnection(CompKiller, UserInputService.InputChanged:Connect(function(Input)
 			if ToggleButtonStartPosition and (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch) then
 				if (Input.Position - ToggleButtonStartPosition).Magnitude > 6 then
 					ToggleButtonDragging = true;
 				end;
 			end;
-		end);
+		end));
 
 		Button.MouseButton1Click:Connect(function()
 			if not ToggleButtonDragging then
@@ -8845,11 +8551,11 @@ function Compkiller.new(Config : Window)
 		WindowOpen:Connect(function() RefreshToggleButton() end);
 		RefreshToggleButton();
 
-		UserInputService.InputBegan:Connect(function(Input,Typing)
+		Compkiller:_TrackWindowConnection(CompKiller, UserInputService.InputBegan:Connect(function(Input,Typing)
 			if not Typing and (Input.KeyCode == Config.Keybind or Input.KeyCode.Name == Config.Keybind) then
 				WindowArgs:_ToggleUI()
 			end;
-		end);
+		end));
 	end;
 
 	function WindowArgs:Update(config: WindowUpdate)
@@ -8899,39 +8605,124 @@ function Compkiller.new(Config : Window)
 
 	table.insert(Compkiller.Elements.Highlight, { Element = SelectionFrame, Property = "BackgroundColor3" })
 
-	local LastTabWidth = -1
-	local LastSelectionY = nil
-	WindowArgs.LOOP_THREAD = task.spawn(function()
-		while task.wait(0.05) do
-			local TabWidth = TabFrame.AbsoluteSize.X - 35
-			if TabWidth ~= LastTabWidth then
-				LastTabWidth = TabWidth
-				BlurElement.Size = UDim2.new(1, TabWidth, 1, 0)
-				MovementFrame.Size = UDim2.new(1, TabWidth, 1, 0)
-			end
+	local SelectedTabConnection = nil;
+	local SelectionUpdateQueued = false;
+	local LastTabWidth = -1;
+	local LastSelectionY = nil;
 
-			if WindowArgs.SelectedTab and WindowArgs.IsOpen then
-				local TargetY = math.ceil(-(TabButtons.AbsolutePosition.Y - WindowArgs.SelectedTab.AbsolutePosition.Y) + 2)
-				if TargetY < 0 or TargetY > TabButtons.AbsoluteSize.Y then
-					if SelectionFrame.BackgroundTransparency < 1 then
-						Compkiller:_Animation(SelectionFrame, TweenInfo.new(0.1), { BackgroundTransparency = 1 })
-					end
-				elseif LastSelectionY ~= TargetY or SelectionFrame.BackgroundTransparency > 0 then
-					LastSelectionY = TargetY
-					Compkiller:_Animation(SelectionFrame, TweenInfo.new(0.12), {
-						BackgroundTransparency = 0,
-						Position = UDim2.new(1, 5, 0, TargetY)
-					})
-				end
-			else
+	local function RefreshWindowGeometry()
+		if WindowArgs.Destroyed or not MainFrame.Parent then return; end;
+		local TabWidth = TabFrame.AbsoluteSize.X - 35;
+		if TabWidth ~= LastTabWidth then
+			LastTabWidth = TabWidth;
+			BlurElement.Size = UDim2.new(1, TabWidth, 1, 0);
+			MovementFrame.Size = UDim2.new(1, TabWidth, 1, 0);
+		end;
+	end;
+
+	local function RefreshSelectionIndicator()
+		SelectionUpdateQueued = false;
+		if WindowArgs.Destroyed or not SelectionFrame.Parent then return; end;
+		if WindowArgs.SelectedTab and WindowArgs.IsOpen and WindowArgs.SelectedTab.Parent then
+			local TargetY = math.ceil(-(TabButtons.AbsolutePosition.Y - WindowArgs.SelectedTab.AbsolutePosition.Y) + 2);
+			if TargetY < 0 or TargetY > TabButtons.AbsoluteSize.Y then
 				if SelectionFrame.BackgroundTransparency < 1 then
-					Compkiller:_Animation(SelectionFrame, TweenInfo.new(0.12), { BackgroundTransparency = 1 })
-				end
-			end
+					Compkiller:_Animation(SelectionFrame, TweenInfo.new(0.1), { BackgroundTransparency = 1 });
+				end;
+			elseif LastSelectionY ~= TargetY or SelectionFrame.BackgroundTransparency > 0 then
+				LastSelectionY = TargetY;
+				Compkiller:_Animation(SelectionFrame, TweenInfo.new(0.12), {
+					BackgroundTransparency = 0,
+					Position = UDim2.new(1, 5, 0, TargetY)
+				});
+			end;
+		elseif SelectionFrame.BackgroundTransparency < 1 then
+			Compkiller:_Animation(SelectionFrame, TweenInfo.new(0.12), { BackgroundTransparency = 1 });
+		end;
+	end;
 
-			if WindowArgs.AlwayShowTab then TabHover:Fire(true) end
-		end
-	end)
+	local function QueueSelectionUpdate()
+		if SelectionUpdateQueued or WindowArgs.Destroyed then return; end;
+		SelectionUpdateQueued = true;
+		task.defer(function()
+			pcall(RefreshSelectionIndicator);
+		end);
+	end;
+
+	function WindowArgs:SetSelectedTab(TabButton)
+		if SelectedTabConnection then
+			pcall(function() SelectedTabConnection:Disconnect(); end);
+			SelectedTabConnection = nil;
+		end;
+		WindowArgs.SelectedTab = TabButton;
+		if typeof(TabButton) == "Instance" then
+			SelectedTabConnection = TabButton:GetPropertyChangedSignal("AbsolutePosition"):Connect(QueueSelectionUpdate);
+		end;
+		QueueSelectionUpdate();
+	end;
+
+	table.insert(WindowArgs.CONNECTIONS, TabFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		RefreshWindowGeometry();
+		QueueSelectionUpdate();
+	end));
+	table.insert(WindowArgs.CONNECTIONS, TabButtons:GetPropertyChangedSignal("AbsolutePosition"):Connect(QueueSelectionUpdate));
+	table.insert(WindowArgs.CONNECTIONS, TabButtons:GetPropertyChangedSignal("AbsoluteSize"):Connect(QueueSelectionUpdate));
+	table.insert(WindowArgs.CONNECTIONS, TabButtonScrollingFrame:GetPropertyChangedSignal("CanvasPosition"):Connect(QueueSelectionUpdate));
+	WindowOpen:Connect(function()
+		QueueSelectionUpdate();
+	end);
+
+	function WindowArgs:Destroy()
+		if WindowArgs.Destroyed then return false; end;
+		WindowArgs.Destroyed = true;
+		Compkiller:CloseActiveSortable("window-destroy");
+		for _, Thread in ipairs(WindowArgs.THREADS or {}) do
+			pcall(function() task.cancel(Thread); end);
+		end;
+		WindowArgs.THREADS = {};
+		if SelectedTabConnection then
+			pcall(function() SelectedTabConnection:Disconnect(); end);
+			SelectedTabConnection = nil;
+		end;
+		for _, Connection in ipairs(WindowArgs.CONNECTIONS or {}) do
+			pcall(function() Connection:Disconnect(); end);
+		end;
+		WindowArgs.CONNECTIONS = {};
+		pcall(function() WindowOpen:Destroy(); end);
+		pcall(function() TabHover:Destroy(); end);
+		Compkiller:_DisconnectWindowConnections(CompKiller);
+		local Index = table.find(Compkiller.Windows, CompKiller);
+		if Index then table.remove(Compkiller.Windows, Index); end;
+		if CompKiller.Parent then CompKiller:Destroy(); end;
+		return true;
+	end;
+
+	CompKiller.Destroying:Connect(function()
+		if not WindowArgs.Destroyed then
+			WindowArgs.Destroyed = true;
+			for _, Thread in ipairs(WindowArgs.THREADS or {}) do
+				pcall(function() task.cancel(Thread); end);
+			end;
+			WindowArgs.THREADS = {};
+			if SelectedTabConnection then
+				pcall(function() SelectedTabConnection:Disconnect(); end);
+				SelectedTabConnection = nil;
+			end;
+			for _, Connection in ipairs(WindowArgs.CONNECTIONS or {}) do
+				pcall(function() Connection:Disconnect(); end);
+			end;
+			WindowArgs.CONNECTIONS = {};
+			pcall(function() WindowOpen:Destroy(); end);
+			pcall(function() TabHover:Destroy(); end);
+			Compkiller:_DisconnectWindowConnections(CompKiller);
+			local Index = table.find(Compkiller.Windows, CompKiller);
+			if Index then table.remove(Compkiller.Windows, Index); end;
+		end;
+	end);
+
+	RefreshWindowGeometry();
+	QueueSelectionUpdate();
+	if WindowArgs.AlwayShowTab then TabHover:Fire(true); end;
 
 	WindowArgs:Update();
 
@@ -9083,7 +8874,7 @@ function Compkiller:GetConfig(Type: string)
 						Suf.Type = "ColorPicker";
 					end;
 				else
-					Suf.Value = Compkiller:_WebSafeValue(Value);
+					Suf.Value = Compkiller:_ConfigSafeValue(Value);
 					Suf.Type = "NormalElement";
 				end;
 				if Suf.Type then
