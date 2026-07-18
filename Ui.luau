@@ -388,7 +388,7 @@ local Mouse = LocalPlayer:GetMouse();
 local CurrentCamera = workspace.CurrentCamera;
 
 local Compkiller = {
-	Version = '1.9.2-dropdown-runtime',
+	Version = '1.9.3-astral-local-scroll-end-fix',
 	Logo = "rbxassetid://120245531583106",
 	Windows = {},
 	Scale = {
@@ -2999,6 +2999,7 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 
 	local SpamUpdate,_Delay = false , tick();
 	local __signals = {};
+	local __connections = {};
 	local Default = nil;
 	local Values = nil;
 	local IsMulti = false;
@@ -3143,7 +3144,7 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 		RefreshSelectionStyles();
 	end;
 
-	BaseParent.MouseButton1Click:Connect(function()
+	table.insert(__connections, BaseParent.MouseButton1Click:Connect(function()
 		local ShouldOpen = not ToggleDb:GetValue();
 
 		if ShouldOpen and SpamUpdate then
@@ -3152,21 +3153,23 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 		end;
 
 		ToggleUI(ShouldOpen);
-	end);
+	end));
 
-	Window:GetAttributeChangedSignal("WindowOpen"):Connect(function()
+	table.insert(__connections, Window:GetAttributeChangedSignal("WindowOpen"):Connect(function()
 		if Window:GetAttribute("WindowOpen") == false then
 			ToggleUI(false);
 		end;
-	end);
+	end));
 
-	Compkiller:_TrackWindowConnection(Window, UserInputService.InputBegan:Connect(function(Input)
+	local GlobalInputConnection = UserInputService.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 			if not Compkiller:_IsInputInsidePopupTree(Input, DropdownWindow, BaseParent) then
 				ToggleUI(false);
 			end;
 		end;
-	end));
+	end);
+	table.insert(__connections, GlobalInputConnection);
+	Compkiller:_TrackWindowConnection(Window, GlobalInputConnection);
 
 	local Args = {};
 
@@ -3209,7 +3212,22 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 		UpdateDropdown();
 	end;
 
+	function Args:SetOpen(Value)
+		ToggleUI(Value == true);
+	end;
+
+	function Args:Destroy()
+		pcall(function() ToggleUI(false); end);
+		pcall(ClearDropdown);
+		for _, Connection in next, __connections do
+			pcall(function() Connection:Disconnect(); end);
+		end;
+		__connections = {};
+		pcall(function() DropdownWindow:Destroy(); end);
+	end;
+
 	Args.EventOut = EventOut;
+	Args.Root = DropdownWindow;
 
 	return Args;
 end;
@@ -4294,6 +4312,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		local Args = {};
 
 		Args.Flag = Config.Flag;
+		Args.Root = Slider;
 
 		function Args:SetValue(Value)
 			Config.Default = Value;
@@ -4305,6 +4324,21 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			});
 
 			Config.Callback(Value);
+		end;
+
+		function Args:SetVisible(Value)
+			Slider.Visible = Value == true;
+		end;
+
+		function Args:Destroy()
+			if Args.Signal and type(Args.Signal.Disconnect) == "function" then
+				pcall(function() Args.Signal:Disconnect(); end);
+				Args.Signal = nil;
+			end;
+			if Config.Flag and type(Compkiller.UnregisterFlag) == "function" then
+				pcall(Compkiller.UnregisterFlag, Compkiller, Config.Flag, Args);
+			end;
+			pcall(function() Slider:Destroy(); end);
 		end;
 
 		Args.Signal = Signal:Connect(function(bool)
@@ -4988,6 +5022,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		local Args = {};
 
 		Args.Flag = Config.Flag;
+		Args.Root = Dropdown;
 
 		local function NormalizeDropdownValue(Value)
 			if not Config.Multi then return Value; end;
@@ -5019,6 +5054,33 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			end;
 			repi:SetData(Config.Default,Config.Values,Config.Multi,true);
 			if Selected ~= nil and Silent ~= true then Config.Callback(Config.Default); end;
+		end;
+
+		function Args:SetName(Value)
+			Config.Name = tostring(Value or "");
+			BlockText.Text = Config.Name;
+		end;
+
+		function Args:SetVisible(Value)
+			local Visible = Value == true;
+			Dropdown.Visible = Visible;
+			if not Visible and repi and type(repi.SetOpen) == "function" then
+				repi:SetOpen(false);
+			end;
+		end;
+
+		function Args:Destroy()
+			if Args.Signal and type(Args.Signal.Disconnect) == "function" then
+				pcall(function() Args.Signal:Disconnect(); end);
+				Args.Signal = nil;
+			end;
+			if repi and type(repi.Destroy) == "function" then
+				pcall(function() repi:Destroy(); end);
+			end;
+			if Config.Flag and type(Compkiller.UnregisterFlag) == "function" then
+				pcall(Compkiller.UnregisterFlag, Compkiller, Config.Flag, Args);
+			end;
+			pcall(function() Dropdown:Destroy(); end);
 		end;
 
 		Args.__DropdownRuntimeV2 = true;
@@ -5368,9 +5430,21 @@ function Compkiller.new(Config : Window)
 	end);
 
 	CompKiller.Name = "u?name=compkiller_"..Compkiller:_RandomString();
-	__ParentScreenGui(CompKiller);
+	local ParentOk = pcall(function()
+		Compkiller:_WithUICapability(function()
+			__ParentScreenGui(CompKiller);
+		end);
+	end);
+	if not ParentOk or not CompKiller.Parent then
+		__ParentScreenGui(CompKiller);
+	end;
 	CompKiller.ResetOnSpawn = false
 	CompKiller.IgnoreGuiInset = true;
+	pcall(function()
+		CompKiller.ScreenInsets = Enum.ScreenInsets.None;
+		CompKiller.SafeAreaCompatibility = Enum.SafeAreaCompatibility.None;
+		CompKiller.ClipToDeviceSafeArea = false;
+	end);
 	CompKiller.ZIndexBehavior = Enum.ZIndexBehavior.Global;
 	CompKiller.DisplayOrder = 1000000;
 	CompKiller:SetAttribute("WindowOpen", true);
@@ -5903,6 +5977,7 @@ function Compkiller.new(Config : Window)
 		local ContainerTab = Instance.new("Frame")
 		local MainFrame = Instance.new("Frame")
 		local Top = Instance.new("ScrollingFrame")
+		local ScrollTrack = Instance.new("Frame")
 		local UIListLayout = Instance.new("UIListLayout")
 
 		ContainerTab.Name = "ContainerTab"
@@ -5922,7 +5997,7 @@ function Compkiller.new(Config : Window)
 		MainFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
 		MainFrame.BorderSizePixel = 0
 		MainFrame.Position = UDim2.new(0.5, 0, 1, -5)
-		MainFrame.Size = UDim2.new(1, 0, 1, -35)
+		MainFrame.Size = UDim2.new(1, 0, 1, -44)
 		MainFrame.ZIndex = 6
 		MainFrame.ClipsDescendants = true
 
@@ -5932,13 +6007,15 @@ function Compkiller.new(Config : Window)
 		Top.BackgroundTransparency = 1.000
 		Top.BorderColor3 = Color3.fromRGB(0, 0, 0)
 		Top.BorderSizePixel = 0
-		Top.Size = UDim2.new(1, 0, 0, 25)
+		Top.Position = UDim2.fromOffset(0, 0)
+		Top.Size = UDim2.new(1, 2, 0, 34)
 		Top.ZIndex = 7
 		Top.ClipsDescendants = true
 		Top.ScrollingDirection = Enum.ScrollingDirection.X
 		Top.CanvasSize = UDim2.new(0, 0, 0, 0)
-		Top.ScrollBarThickness = 0
+		Top.ScrollBarThickness = 3
 		Top.ScrollBarImageColor3 = Compkiller.Colors.Highlight
+		Top.ScrollBarImageTransparency = 0.15
 
 		table.insert(Compkiller.Elements.Highlight,{
 			Element = Top,
@@ -5948,10 +6025,24 @@ function Compkiller.new(Config : Window)
 		Top.BottomImage = ""
 		Top.TopImage = ""
 
+		ScrollTrack.Name = "ScrollTrack"
+		ScrollTrack.Parent = ContainerTab
+		ScrollTrack.BackgroundColor3 = Compkiller.Colors.Highlight
+		ScrollTrack.BackgroundTransparency = 0.72
+		ScrollTrack.BorderSizePixel = 0
+		ScrollTrack.Position = UDim2.new(0, 0, 0, 32)
+		ScrollTrack.Size = UDim2.new(1, 0, 0, 1)
+		ScrollTrack.ZIndex = 6
+
+		table.insert(Compkiller.Elements.Highlight,{
+			Element = ScrollTrack,
+			Property = "BackgroundColor3"
+		});
+
 		UIListLayout.Parent = Top
 		UIListLayout.FillDirection = Enum.FillDirection.Horizontal
 		UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+		UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 		UIListLayout.Padding = UDim.new(0, 10)
 
 		UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
@@ -6150,13 +6241,13 @@ function Compkiller.new(Config : Window)
 			
 			Highlight.Name = "Highlight"
 			Highlight.Parent = Frame
-			Highlight.AnchorPoint = Vector2.new(1, 0.5)
+			Highlight.AnchorPoint = Vector2.new(0.5, 0.5)
 			Highlight.BackgroundColor3 = Compkiller.Colors.Highlight
 			Highlight.BackgroundTransparency = 1.000
 			Highlight.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			Highlight.BorderSizePixel = 0
-			Highlight.Position = UDim2.new(0, 3, 0.5, 0)
-			Highlight.Size = UDim2.new(0, 5, 0, 10)
+			Highlight.Position = UDim2.new(0, 4, 0.5, 0)
+			Highlight.Size = UDim2.new(0, 6, 0, 14)
 			Highlight.ZIndex = 11
 
 			table.insert(Compkiller.Elements.Highlight,{
@@ -6201,7 +6292,7 @@ function Compkiller.new(Config : Window)
 
 					Compkiller:_Animation(Highlight,TweenInfo.new(0.2),{
 						BackgroundTransparency = 0,
-						Size = UDim2.new(0, 5, 0, 10)
+						Size = UDim2.new(0, 6, 0, 14)
 					})
 
 					Compkiller:_Animation(Frame,TweenInfo.new(0.2),{
@@ -6219,7 +6310,7 @@ function Compkiller.new(Config : Window)
 
 					Compkiller:_Animation(Highlight,TweenInfo.new(0.2),{
 						BackgroundTransparency = 1,
-						Size = UDim2.new(0, 5, 0, 2)
+						Size = UDim2.new(0, 6, 0, 3)
 					})
 
 					Compkiller:_Animation(Frame,TweenInfo.new(0.2),{
@@ -8244,6 +8335,10 @@ function Compkiller.new(Config : Window)
 
 			local SectionArgs = Compkiller:_LoadElement(Section , true , TabOpenSignal)
 			SectionArgs.__MainFrame = Section
+			SectionArgs.Root = Section
+			function SectionArgs:SetVisible(Value)
+				Section.Visible = Value == true;
+			end;
 			return SectionArgs
 		end;
 
