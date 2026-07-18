@@ -388,7 +388,7 @@ local Mouse = LocalPlayer:GetMouse();
 local CurrentCamera = workspace.CurrentCamera;
 
 local Compkiller = {
-	Version = '1.9.2-dynamic-controls',
+	Version = '1.9.2-dropdown-runtime',
 	Logo = "rbxassetid://120245531583106",
 	Windows = {},
 	Scale = {
@@ -494,6 +494,25 @@ function Compkiller:_QueueUIUpdate(Label, Callback)
 	});
 	Compkiller.UIRuntime.Queued += 1;
 	Compkiller:_DrainUIQueue();
+	return true;
+end;
+
+function Compkiller:_DispatchControlCallback(Label, Callback, ...)
+	if type(Callback) ~= "function" then return false; end;
+	local Arguments = table.pack(...);
+	task.defer(function()
+		local Ok, Error = pcall(function()
+			Compkiller:_WithUICapability(function()
+				Callback(table.unpack(Arguments, 1, Arguments.n));
+			end);
+		end);
+		if not Ok then
+			Compkiller.UIRuntime.Failed += 1;
+			Compkiller.UIRuntime.LastLabel = tostring(Label or "Control callback");
+			Compkiller.UIRuntime.LastError = tostring(Error);
+			warn("[Compkiller] " .. tostring(Label or "Control callback") .. " failed: " .. tostring(Error));
+		end;
+	end);
 	return true;
 end;
 
@@ -967,7 +986,12 @@ function Compkiller:_Input(Frame : Frame , Callback : () -> ()) : TextButton
 	Button.TextTransparency = 1;
 
 	if Callback then
-		Button.MouseButton1Click:Connect(Callback);
+		Button.MouseButton1Click:Connect(function(...)
+			local Arguments = table.pack(...);
+			Compkiller:_WithUICapability(function()
+				Callback(table.unpack(Arguments, 1, Arguments.n));
+			end);
+		end);
 	end;
 
 	return Button;
@@ -2975,7 +2999,6 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 
 	local SpamUpdate,_Delay = false , tick();
 	local __signals = {};
-	local __connections = {};
 	local Default = nil;
 	local Values = nil;
 	local IsMulti = false;
@@ -3098,7 +3121,11 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 				Compkiller:_Input(ButtonData.DropdownItem, function()
 					CurrentMulti[Value] = not CurrentMulti[Value];
 					ApplyButtonStyle(ButtonData, CurrentMulti[Value] == true, true);
-					Callback(CurrentMulti);
+					local Snapshot = {};
+					for Item, Enabled in pairs(CurrentMulti) do
+						if Enabled == true then Snapshot[Item] = true; end;
+					end;
+					Compkiller:_DispatchControlCallback("Dropdown multi selection", Callback, Snapshot);
 				end);
 			else
 				Compkiller:_Input(ButtonData.DropdownItem, function()
@@ -3109,14 +3136,14 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 						ApplyButtonStyle(Previous, false, true);
 					end;
 					ApplyButtonStyle(ButtonData, true, true);
-					Callback(Value);
+					Compkiller:_DispatchControlCallback("Dropdown selection", Callback, Value);
 				end);
 			end;
 		end;
 		RefreshSelectionStyles();
 	end;
 
-	table.insert(__connections, BaseParent.MouseButton1Click:Connect(function()
+	BaseParent.MouseButton1Click:Connect(function()
 		local ShouldOpen = not ToggleDb:GetValue();
 
 		if ShouldOpen and SpamUpdate then
@@ -3125,23 +3152,21 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 		end;
 
 		ToggleUI(ShouldOpen);
-	end));
+	end);
 
-	table.insert(__connections, Window:GetAttributeChangedSignal("WindowOpen"):Connect(function()
+	Window:GetAttributeChangedSignal("WindowOpen"):Connect(function()
 		if Window:GetAttribute("WindowOpen") == false then
 			ToggleUI(false);
 		end;
-	end));
+	end);
 
-	local GlobalInputConnection = UserInputService.InputBegan:Connect(function(Input)
+	Compkiller:_TrackWindowConnection(Window, UserInputService.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 			if not Compkiller:_IsInputInsidePopupTree(Input, DropdownWindow, BaseParent) then
 				ToggleUI(false);
 			end;
 		end;
-	end);
-	table.insert(__connections, GlobalInputConnection);
-	Compkiller:_TrackWindowConnection(Window, GlobalInputConnection);
+	end));
 
 	local Args = {};
 
@@ -3184,22 +3209,7 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 		UpdateDropdown();
 	end;
 
-	function Args:SetOpen(Value)
-		ToggleUI(Value == true);
-	end;
-
-	function Args:Destroy()
-		pcall(function() ToggleUI(false); end);
-		pcall(ClearDropdown);
-		for _, Connection in next, __connections do
-			pcall(function() Connection:Disconnect(); end);
-		end;
-		__connections = {};
-		pcall(function() DropdownWindow:Destroy(); end);
-	end;
-
 	Args.EventOut = EventOut;
-	Args.Root = DropdownWindow;
 
 	return Args;
 end;
@@ -4284,7 +4294,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		local Args = {};
 
 		Args.Flag = Config.Flag;
-		Args.Root = Slider;
 
 		function Args:SetValue(Value)
 			Config.Default = Value;
@@ -4296,21 +4305,6 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			});
 
 			Config.Callback(Value);
-		end;
-
-		function Args:SetVisible(Value)
-			Slider.Visible = Value == true;
-		end;
-
-		function Args:Destroy()
-			if Args.Signal and type(Args.Signal.Disconnect) == "function" then
-				pcall(function() Args.Signal:Disconnect(); end);
-				Args.Signal = nil;
-			end;
-			if Config.Flag and type(Compkiller.UnregisterFlag) == "function" then
-				pcall(Compkiller.UnregisterFlag, Compkiller, Config.Flag, Args);
-			end;
-			pcall(function() Slider:Destroy(); end);
 		end;
 
 		Args.Signal = Signal:Connect(function(bool)
@@ -4958,30 +4952,21 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		local Button = Compkiller:_Input(ValueItems);
 
 		repi = Compkiller:_LoadDropdown(Button,function(value)
-		  if Config.Multi then
-			  local Value = value or {}
-				local Dumped = {}
-
+			if Config.Multi then
+				local Value = value or {};
+				local Dumped = {};
 				for i,v in Value do
 					if typeof(i) == 'string' then
-						if v then
-						  table.insert(Dumped, i)
-						end
+						if v then table.insert(Dumped, i); end;
 					else
-						table.insert(Dumped, v)
-					end
-				end
+						table.insert(Dumped, v);
+					end;
+				end;
+				value = Dumped;
+			end;
 
-				value = Dumped
-			end
-		
 			Config.Default = value;
-
-			repi:SetData(Config.Default,Config.Values,Config.Multi,false);
-			repi:SetDefault(Config.Default);
-
 			ValueText.Text = DaTabarser(Config.Default);
-
 			Config.Callback(value);
 		end);
 
@@ -5003,67 +4988,40 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		local Args = {};
 
 		Args.Flag = Config.Flag;
-		Args.Root = Dropdown;
 
-		function Args:SetValue(Value)
-			if Config.Multi then
-			  Value = Value or {}
-				local Dumped = {}
+		local function NormalizeDropdownValue(Value)
+			if not Config.Multi then return Value; end;
+			Value = Value or {};
+			local Dumped = {};
+			for i,v in Value do
+				if typeof(i) == 'string' then
+					if v then table.insert(Dumped, i); end;
+				else
+					table.insert(Dumped, v);
+				end;
+			end;
+			return Dumped;
+		end;
 
-				for i,v in Value do
-					if typeof(i) == 'string' then
-						if v then
-						  table.insert(Dumped, i)
-						end
-					else
-						table.insert(Dumped, v)
-					end
-				end
-
-				Value = Dumped
-			end
-			
+		function Args:SetValue(Value, Silent)
+			Value = NormalizeDropdownValue(Value);
 			Config.Default = Value;
-
 			ValueText.Text = DaTabarser(Config.Default);
+			repi:SetDefault(Config.Default);
+			if Silent ~= true then Config.Callback(Value); end;
+		end;
 
+		function Args:SetValues(v, Selected, Silent)
+			Config.Values = type(v) == "table" and v or {};
+			if Selected ~= nil then
+				Config.Default = NormalizeDropdownValue(Selected);
+				ValueText.Text = DaTabarser(Config.Default);
+			end;
 			repi:SetData(Config.Default,Config.Values,Config.Multi,true);
-
-			Config.Callback(Value);
+			if Selected ~= nil and Silent ~= true then Config.Callback(Config.Default); end;
 		end;
 
-		function Args:SetValues(v)
-			Config.Values = v;
-
-			repi:SetData(Config.Default,Config.Values,Config.Multi,true);
-		end;
-
-		function Args:SetName(Value)
-			Config.Name = tostring(Value or "");
-			BlockText.Text = Config.Name;
-		end;
-
-		function Args:SetVisible(Value)
-			local Visible = Value == true;
-			Dropdown.Visible = Visible;
-			if not Visible and repi and type(repi.SetOpen) == "function" then
-				repi:SetOpen(false);
-			end;
-		end;
-
-		function Args:Destroy()
-			if Args.Signal and type(Args.Signal.Disconnect) == "function" then
-				pcall(function() Args.Signal:Disconnect(); end);
-				Args.Signal = nil;
-			end;
-			if repi and type(repi.Destroy) == "function" then
-				pcall(function() repi:Destroy(); end);
-			end;
-			if Config.Flag and type(Compkiller.UnregisterFlag) == "function" then
-				pcall(Compkiller.UnregisterFlag, Compkiller, Config.Flag, Args);
-			end;
-			pcall(function() Dropdown:Destroy(); end);
-		end;
+		Args.__DropdownRuntimeV2 = true;
 
 		Args.Signal = Signal:Connect(function(bool)
 			if bool then
@@ -8286,10 +8244,6 @@ function Compkiller.new(Config : Window)
 
 			local SectionArgs = Compkiller:_LoadElement(Section , true , TabOpenSignal)
 			SectionArgs.__MainFrame = Section
-			SectionArgs.Root = Section
-			function SectionArgs:SetVisible(Value)
-				Section.Visible = Value == true;
-			end;
 			return SectionArgs
 		end;
 
