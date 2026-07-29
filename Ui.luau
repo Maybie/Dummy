@@ -176,6 +176,22 @@ export type Button = {
 	Callback: () -> any?
 };
 
+export type ButtonGroupItem = {
+	Name: string,
+	Icon: string?,
+	Style: string?,
+	Color: Color3 | string | nil,
+	TextColor: Color3 | string | nil,
+	HoverText: string?,
+	Disabled: boolean?,
+	Callback: () -> any?
+};
+
+export type ButtonGroup = {
+	Buttons: {ButtonGroupItem},
+	Gap: number?
+};
+
 export type EditorTrigger = {
 	Name: string,
 	Description: string?,
@@ -388,7 +404,7 @@ local Mouse = LocalPlayer:GetMouse();
 local CurrentCamera = workspace.CurrentCamera;
 
 local Compkiller = {
-	Version = '1.9.3-astral-local-scroll-end-fix',
+	Version = '1.9.4-button-hover-tab-indicator-fix',
 	Logo = "rbxassetid://120245531583106",
 	Windows = {},
 	Scale = {
@@ -3611,17 +3627,19 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		local TextLeft = Icon.Visible and 42 or 14;
 		Title.Name = "Title";
 		Title.Parent = Card;
+		Title.AnchorPoint = Vector2.new(0, HasDescription and 0 or 0.5);
 		Title.BackgroundTransparency = 1;
-		Title.Position = UDim2.new(0, TextLeft, 0, HasDescription and 6 or 0);
+		Title.Position = UDim2.new(0, TextLeft, HasDescription and 0 or 0.5, HasDescription and 6 or 0);
 		Title.Size = UDim2.new(1, -(TextLeft + 58), 0, HasDescription and 20 or Height);
 		Title.Font = Enum.Font.GothamMedium;
 		Title.Text = tostring(Config.Name or "Button");
 		Title.TextSize = Compkiller.Design.TextSize;
 		Title.TextTransparency = 0.04;
 		Title.TextXAlignment = (Style == "primary" and not Icon.Visible and not HasDescription and Config.Badge == nil) and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left;
+		Title.TextYAlignment = Enum.TextYAlignment.Center;
 		if Title.TextXAlignment == Enum.TextXAlignment.Center then
-			Title.Position = UDim2.new(0, 12, 0, 0);
-			Title.Size = UDim2.new(1, -24, 1, 0);
+			Title.Position = UDim2.new(0, 12, HasDescription and 0 or 0.5, HasDescription and 0 or 0);
+			Title.Size = UDim2.new(1, -24, 0, HasDescription and 20 or Height);
 		end;
 		Title.ZIndex = Zindex + 8;
 
@@ -3763,6 +3781,468 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		end;
 		return Args;
 	end;
+
+
+	function Args:AddButtonGroup(Config: ButtonGroup)
+		Config = type(Config) == "table" and Config or {};
+		local SourceButtons = type(Config.Buttons) == "table" and Config.Buttons or Config;
+		local ButtonConfigs = {};
+
+		for Index = 1, math.min(4, #SourceButtons) do
+			local ButtonConfig = SourceButtons[Index];
+			if type(ButtonConfig) == "table" then
+				ButtonConfig = Compkiller:_ConvertArgs(ButtonConfig);
+				ButtonConfig = Compkiller.__CONFIG(ButtonConfig, {
+					Name = "Button " .. tostring(Index),
+					Icon = nil,
+					Style = "Secondary",
+					Color = nil,
+					TextColor = nil,
+					HoverText = nil,
+					Disabled = false,
+					Callback = function() end,
+				});
+				table.insert(ButtonConfigs, ButtonConfig);
+			end;
+		end;
+
+		if #ButtonConfigs == 0 then
+			table.insert(ButtonConfigs, {
+				Name = "Button",
+				Icon = nil,
+				Style = "Secondary",
+				Color = nil,
+				TextColor = nil,
+				HoverText = nil,
+				Disabled = false,
+				Callback = function() end,
+			});
+		end;
+
+		local Count = #ButtonConfigs;
+		local Gap = math.clamp(tonumber(Config.Gap) or Compkiller.Design.ControlGap, 0, 18);
+		local Height = Compkiller.Design.ControlHeight;
+		local Root = Instance.new("Frame");
+		local Row = Instance.new("Frame");
+		local Layout = Instance.new("UIListLayout");
+		local ButtonAPIs = {};
+
+		Root.Name = "ButtonGroup";
+		Root.Parent = Parent;
+		Root.BackgroundTransparency = 1;
+		Root.BorderSizePixel = 0;
+		Root.Size = UDim2.new(1, -1, 0, Height + 4);
+		Root.ZIndex = Zindex + 5;
+
+		Row.Name = "Row";
+		Row.Parent = Root;
+		Row.BackgroundTransparency = 1;
+		Row.BorderSizePixel = 0;
+		Row.Position = UDim2.new(0, 7, 0, 2);
+		Row.Size = UDim2.new(1, -14, 1, -4);
+		Row.ZIndex = Zindex + 6;
+
+		Layout.Parent = Row;
+		Layout.FillDirection = Enum.FillDirection.Horizontal;
+		Layout.HorizontalAlignment = Enum.HorizontalAlignment.Left;
+		Layout.VerticalAlignment = Enum.VerticalAlignment.Center;
+		Layout.SortOrder = Enum.SortOrder.LayoutOrder;
+		Layout.Padding = UDim.new(0, Gap);
+
+		local function ResolveThemeColor(Value, FallbackKey)
+			if typeof(Value) == "Color3" then
+				return Value, nil;
+			end;
+
+			local Requested = tostring(Value or FallbackKey or "");
+			for Key, Color in pairs(Compkiller.Colors) do
+				if tostring(Key):lower() == Requested:lower() and typeof(Color) == "Color3" then
+					return Color, Key;
+				end;
+			end;
+
+			local Color = Compkiller.Colors[FallbackKey];
+			if typeof(Color) ~= "Color3" then
+				Color = Color3.new(1, 1, 1);
+			end;
+			return Color, FallbackKey;
+		end;
+
+		local function CreateButton(ButtonConfig, Index)
+			local Holder = Instance.new("Frame");
+			local Card = Instance.new("Frame");
+			local Corner = Instance.new("UICorner");
+			local Stroke = Instance.new("UIStroke");
+			local Accent = Instance.new("Frame");
+			local AccentCorner = Instance.new("UICorner");
+			local Icon = Instance.new("ImageLabel");
+			local Title = Instance.new("TextLabel");
+			local Input = Instance.new("TextButton");
+			local Scale = Instance.new("UIScale");
+			local Enabled = ButtonConfig.Disabled ~= true;
+			local Style = string.lower(tostring(ButtonConfig.Style or "Secondary"));
+			local BaseCardTransparency = 0.18;
+			local BaseStrokeTransparency = 0.34;
+			local Bindings = {};
+			local BaseText = tostring(ButtonConfig.Name or "Button");
+			local HoverText = ButtonConfig.HoverText ~= nil and tostring(ButtonConfig.HoverText) or nil;
+			local Hovered = false;
+
+			Holder.Name = "Button_" .. tostring(Index);
+			Holder.Parent = Row;
+			Holder.BackgroundTransparency = 1;
+			Holder.BorderSizePixel = 0;
+			Holder.LayoutOrder = Index;
+			Holder.Size = UDim2.new(1 / Count, -((Gap * (Count - 1)) / Count), 1, 0);
+			Holder.ZIndex = Zindex + 6;
+
+			Card.Name = "Card";
+			Card.Parent = Holder;
+			Card.AnchorPoint = Vector2.new(0.5, 0.5);
+			Card.Position = UDim2.fromScale(0.5, 0.5);
+			Card.Size = UDim2.fromScale(1, 1);
+			Card.BorderSizePixel = 0;
+			Card.ZIndex = Zindex + 7;
+			Scale.Parent = Card;
+
+			Corner.CornerRadius = UDim.new(0, Compkiller.Design.Radius);
+			Corner.Parent = Card;
+			Stroke.Thickness = 1;
+			Stroke.Parent = Card;
+
+			Accent.Name = "Accent";
+			Accent.Parent = Card;
+			Accent.BorderSizePixel = 0;
+			Accent.Position = UDim2.new(0, 0, 0, 8);
+			Accent.Size = UDim2.new(0, 3, 1, -16);
+			Accent.ZIndex = Zindex + 8;
+			AccentCorner.CornerRadius = UDim.new(1, 0);
+			AccentCorner.Parent = Accent;
+
+			Icon.Name = "Icon";
+			Icon.Parent = Card;
+			Icon.AnchorPoint = Vector2.new(0, 0.5);
+			Icon.BackgroundTransparency = 1;
+			Icon.Position = UDim2.new(0, Count >= 4 and 8 or 10, 0.5, 0);
+			Icon.Size = UDim2.new(0, Count >= 4 and 14 or 16, 0, Count >= 4 and 14 or 16);
+			Icon.ZIndex = Zindex + 9;
+			Icon.Visible = type(ButtonConfig.Icon) == "string" and ButtonConfig.Icon ~= "";
+			if Icon.Visible then
+				local IconData = Compkiller:_GetIcon(ButtonConfig.Icon);
+				if type(IconData) == "table" then
+					Icon.Image = IconData.Image;
+					Icon.ImageRectOffset = IconData.ImageRectPosition or Vector2.zero;
+					Icon.ImageRectSize = IconData.ImageRectSize or Vector2.zero;
+				else
+					Icon.Image = tostring(IconData or "");
+				end;
+			end;
+
+			local SingleMatchesStandard = Count == 1;
+			local CenterTitle = not Icon.Visible and (not SingleMatchesStandard or Style == "primary");
+
+			Title.Name = "Title";
+			Title.Parent = Card;
+			Title.AnchorPoint = Vector2.new(0, 0.5);
+			Title.BackgroundTransparency = 1;
+			if Icon.Visible then
+				Title.Position = UDim2.new(0, Count >= 4 and 27 or 32, 0.5, 0);
+				Title.Size = UDim2.new(1, -(Count >= 4 and 34 or 40), 0, Height);
+			elseif CenterTitle then
+				Title.Position = UDim2.new(0, 8, 0.5, 0);
+				Title.Size = UDim2.new(1, -16, 0, Height);
+			else
+				Title.Position = UDim2.new(0, 14, 0.5, 0);
+				Title.Size = UDim2.new(1, -28, 0, Height);
+			end;
+			Title.Font = Enum.Font.GothamMedium;
+			Title.Text = BaseText;
+			Title.TextSize = Count >= 4 and 11 or (Count == 3 and 12 or Compkiller.Design.TextSize);
+			Title.TextTransparency = 0.04;
+			Title.TextTruncate = Enum.TextTruncate.AtEnd;
+			Title.TextXAlignment = CenterTitle and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left;
+			Title.TextYAlignment = Enum.TextYAlignment.Center;
+			Title.ZIndex = Zindex + 9;
+
+			Input.Name = "Input";
+			Input.Parent = Card;
+			Input.BackgroundTransparency = 1;
+			Input.BorderSizePixel = 0;
+			Input.Size = UDim2.fromScale(1, 1);
+			Input.Text = "";
+			Input.AutoButtonColor = false;
+			Input.ZIndex = Zindex + 10;
+
+			local function RemoveBinding(Element, Property)
+				local ElementBindings = Bindings[Element];
+				local Binding = ElementBindings and ElementBindings[Property];
+				if not Binding then return; end;
+				local Bucket = Compkiller.Elements[Binding.Key];
+				if type(Bucket) == "table" then
+					local Position = table.find(Bucket, Binding.Entry);
+					if Position then table.remove(Bucket, Position); end;
+				end;
+				ElementBindings[Property] = nil;
+			end;
+
+			local function ApplyColor(Element, Property, Value, FallbackKey)
+				RemoveBinding(Element, Property);
+				local Color, Key = ResolveThemeColor(Value, FallbackKey);
+				Element[Property] = Color;
+				if Key and type(Compkiller.Elements[Key]) == "table" then
+					local Entry = { Element = Element, Property = Property };
+					table.insert(Compkiller.Elements[Key], Entry);
+					Bindings[Element] = Bindings[Element] or {};
+					Bindings[Element][Property] = { Key = Key, Entry = Entry };
+				end;
+				return Color, Key;
+			end;
+
+			local function RefreshTitle()
+				if Hovered and HoverText ~= nil and HoverText ~= "" then
+					Title.Text = HoverText;
+				else
+					Title.Text = BaseText;
+				end;
+			end;
+
+			local function ApplyStyle()
+				local HasCustomColor = ButtonConfig.Color ~= nil;
+
+				if Style == "primary" then
+					BaseCardTransparency = 0.12;
+					BaseStrokeTransparency = 0.25;
+					ApplyColor(Card, "BackgroundColor3", ButtonConfig.Color, "Highlight");
+					ApplyColor(Stroke, "Color", HasCustomColor and ButtonConfig.Color or nil, HasCustomColor and "Highlight" or "HighStrokeColor");
+					Accent.Visible = false;
+					ApplyColor(Title, "TextColor3", ButtonConfig.TextColor, "SwitchColor");
+					ApplyColor(Icon, "ImageColor3", ButtonConfig.TextColor, "SwitchColor");
+				elseif Style == "ghost" then
+					BaseCardTransparency = 0.72;
+					BaseStrokeTransparency = 0.76;
+					ApplyColor(Card, "BackgroundColor3", nil, "BlockColor");
+					ApplyColor(Stroke, "Color", HasCustomColor and ButtonConfig.Color or nil, HasCustomColor and "Highlight" or "StrokeColor");
+					Accent.Visible = false;
+					ApplyColor(Title, "TextColor3", ButtonConfig.TextColor or ButtonConfig.Color, HasCustomColor and "Highlight" or "SwitchColor");
+					ApplyColor(Icon, "ImageColor3", ButtonConfig.TextColor or ButtonConfig.Color, HasCustomColor and "Highlight" or "SwitchColor");
+				elseif Style == "risky" or Style == "danger" then
+					BaseCardTransparency = 0.16;
+					BaseStrokeTransparency = 0.48;
+					ApplyColor(Card, "BackgroundColor3", nil, "BlockBackground");
+					ApplyColor(Stroke, "Color", ButtonConfig.Color, "Risky");
+					Accent.Visible = true;
+					ApplyColor(Accent, "BackgroundColor3", ButtonConfig.Color, "Risky");
+					ApplyColor(Title, "TextColor3", ButtonConfig.TextColor or ButtonConfig.Color, "Risky");
+					ApplyColor(Icon, "ImageColor3", ButtonConfig.TextColor or ButtonConfig.Color, "Risky");
+				else
+					BaseCardTransparency = 0.18;
+					BaseStrokeTransparency = 0.34;
+					ApplyColor(Card, "BackgroundColor3", nil, "BlockBackground");
+					ApplyColor(Stroke, "Color", HasCustomColor and ButtonConfig.Color or nil, HasCustomColor and "Highlight" or "StrokeColor");
+					Accent.Visible = true;
+					ApplyColor(Accent, "BackgroundColor3", ButtonConfig.Color, "Highlight");
+					ApplyColor(Title, "TextColor3", ButtonConfig.TextColor, "SwitchColor");
+					ApplyColor(Icon, "ImageColor3", ButtonConfig.Color, "Highlight");
+				end;
+
+				Card.BackgroundTransparency = Enabled and BaseCardTransparency or 0.82;
+				Stroke.Transparency = BaseStrokeTransparency;
+			end;
+
+			local function SetHover(IsHover)
+				Hovered = IsHover == true and Enabled and Signal:GetValue();
+				RefreshTitle();
+				if not Enabled or not Signal:GetValue() then return; end;
+				Compkiller:_Animation(Card, TweenInfo.new(Compkiller.Design.AnimationTime), {
+					BackgroundTransparency = IsHover and math.max(0.04, BaseCardTransparency - 0.10) or BaseCardTransparency,
+				});
+				Compkiller:_Animation(Stroke, TweenInfo.new(Compkiller.Design.AnimationTime), {
+					Transparency = IsHover and math.max(0.08, BaseStrokeTransparency - 0.18) or BaseStrokeTransparency,
+				});
+				Compkiller:_Animation(Scale, TweenInfo.new(0.12), { Scale = IsHover and 1.01 or 1 });
+			end;
+
+			Input.MouseEnter:Connect(function() SetHover(true); end);
+			Input.MouseLeave:Connect(function() SetHover(false); end);
+			Input.MouseButton1Down:Connect(function()
+				if Enabled then Compkiller:_Animation(Scale, TweenInfo.new(0.08), { Scale = 0.985 }); end;
+			end);
+			Input.MouseButton1Up:Connect(function()
+				if Enabled then Compkiller:_Animation(Scale, TweenInfo.new(0.10), { Scale = 1.01 }); end;
+			end);
+			Input.MouseButton1Click:Connect(function()
+				if Enabled then
+					Compkiller:_DispatchControlCallback("ButtonGroup." .. tostring(ButtonConfig.Name), ButtonConfig.Callback);
+				end;
+			end);
+
+			local API = {
+				Root = Holder,
+				Card = Card,
+				Input = Input,
+				Index = Index,
+			};
+
+			function API:SetText(Value)
+				BaseText = tostring(Value or "");
+				ButtonConfig.Name = BaseText;
+				RefreshTitle();
+			end;
+
+			function API:SetHoverText(Value)
+				HoverText = Value ~= nil and tostring(Value) or nil;
+				ButtonConfig.HoverText = HoverText;
+				RefreshTitle();
+			end;
+
+			function API:IsHovered()
+				return Hovered;
+			end;
+
+			function API:SetColor(Value)
+				ButtonConfig.Color = Value;
+				ApplyStyle();
+			end;
+
+			function API:SetTextColor(Value)
+				ButtonConfig.TextColor = Value;
+				ApplyStyle();
+			end;
+
+			function API:SetEnabled(Value)
+				Enabled = Value == true;
+				ButtonConfig.Disabled = not Enabled;
+				if not Enabled then
+					Hovered = false;
+					RefreshTitle();
+				end;
+				Card.BackgroundTransparency = Enabled and BaseCardTransparency or 0.82;
+				Title.TextTransparency = Enabled and 0.04 or 0.58;
+				Icon.ImageTransparency = Enabled and 0 or 0.62;
+			end;
+
+			function API:SetVisible(Value)
+				Holder.Visible = Value == true;
+				if not Holder.Visible then
+					Hovered = false;
+					RefreshTitle();
+				end;
+			end;
+
+			function API:Click()
+				if Enabled then
+					Compkiller:_DispatchControlCallback("ButtonGroup." .. tostring(ButtonConfig.Name), ButtonConfig.Callback);
+				end;
+			end;
+
+			function API:GetValue()
+				return BaseText;
+			end;
+
+			Holder.Destroying:Connect(function()
+				for Element, ElementBindings in pairs(Bindings) do
+					for Property in pairs(ElementBindings) do
+						RemoveBinding(Element, Property);
+					end;
+				end;
+			end);
+
+			ApplyStyle();
+			API:SetEnabled(Enabled);
+			Compkiller:_GuardUIObject(API, { "SetText", "SetHoverText", "IsHovered", "SetColor", "SetTextColor", "SetEnabled", "SetVisible", "Click" });
+			return API;
+		end;
+
+		for Index, ButtonConfig in ipairs(ButtonConfigs) do
+			ButtonAPIs[Index] = CreateButton(ButtonConfig, Index);
+		end;
+
+		local API = {
+			Root = Root,
+			Row = Row,
+			Buttons = ButtonAPIs,
+			__MainFrame = Root,
+		};
+
+		function API:GetButton(Index)
+			return ButtonAPIs[tonumber(Index) or 1];
+		end;
+
+		function API:SetText(Index, Value)
+			if Value == nil and #ButtonAPIs == 1 then
+				return ButtonAPIs[1]:SetText(Index);
+			end;
+			local Button = ButtonAPIs[tonumber(Index) or 1];
+			if Button then return Button:SetText(Value); end;
+		end;
+
+		function API:SetHoverText(Index, Value)
+			if Value == nil and #ButtonAPIs == 1 and type(Index) ~= "number" then
+				return ButtonAPIs[1]:SetHoverText(Index);
+			end;
+			local Button = ButtonAPIs[tonumber(Index) or 1];
+			if Button then return Button:SetHoverText(Value); end;
+		end;
+
+		function API:IsHovered(Index)
+			local Button = ButtonAPIs[tonumber(Index) or 1];
+			return Button and Button:IsHovered() or false;
+		end;
+
+		function API:SetColor(Index, Value)
+			if Value == nil and #ButtonAPIs == 1 then
+				return ButtonAPIs[1]:SetColor(Index);
+			end;
+			local Button = ButtonAPIs[tonumber(Index) or 1];
+			if Button then return Button:SetColor(Value); end;
+		end;
+
+		function API:SetTextColor(Index, Value)
+			if Value == nil and #ButtonAPIs == 1 then
+				return ButtonAPIs[1]:SetTextColor(Index);
+			end;
+			local Button = ButtonAPIs[tonumber(Index) or 1];
+			if Button then return Button:SetTextColor(Value); end;
+		end;
+
+		function API:SetEnabled(Index, Value)
+			if Value == nil and #ButtonAPIs == 1 then
+				return ButtonAPIs[1]:SetEnabled(Index);
+			end;
+			local Button = ButtonAPIs[tonumber(Index) or 1];
+			if Button then return Button:SetEnabled(Value); end;
+		end;
+
+		function API:SetVisible(Value)
+			Root.Visible = Value == true;
+		end;
+
+		function API:Click(Index)
+			local Button = ButtonAPIs[tonumber(Index) or 1];
+			if Button then return Button:Click(); end;
+		end;
+
+		function API:GetValue()
+			local Values = {};
+			for Index, Button in ipairs(ButtonAPIs) do
+				Values[Index] = Button:GetValue();
+			end;
+			return Values;
+		end;
+
+		API.Signal = Signal:Connect(function(Value)
+			Root.Visible = Value == true;
+		end);
+		Root.Visible = Signal:GetValue();
+
+		Compkiller:_GuardUIObject(API, {
+			"GetButton", "SetText", "SetHoverText", "IsHovered", "SetColor", "SetTextColor",
+			"SetEnabled", "SetVisible", "Click"
+		});
+		return API;
+	end;
+
+	Args.AddButtonRow = Args.AddButtonGroup;
 
 	function Args:AddEditorTrigger(Config: EditorTrigger)
 		Config = Compkiller:_ConvertArgs(Config);
@@ -8739,8 +9219,14 @@ function Compkiller.new(Config : Window)
 		SelectionUpdateQueued = false;
 		if WindowArgs.Destroyed or not SelectionFrame.Parent then return; end;
 		if WindowArgs.SelectedTab and WindowArgs.IsOpen and WindowArgs.SelectedTab.Parent then
-			local TargetY = math.ceil(-(TabButtons.AbsolutePosition.Y - WindowArgs.SelectedTab.AbsolutePosition.Y) + 2);
-			if TargetY < 0 or TargetY > TabButtons.AbsoluteSize.Y then
+			local SelectedTop = WindowArgs.SelectedTab.AbsolutePosition.Y;
+			local SelectedHeight = WindowArgs.SelectedTab.AbsoluteSize.Y;
+			local IndicatorHeight = SelectionFrame.AbsoluteSize.Y;
+			local TargetY = math.round((SelectedTop + (SelectedHeight * 0.5)) - TabButtons.AbsolutePosition.Y - (IndicatorHeight * 0.5));
+			local ViewTop = TabButtonScrollingFrame.AbsolutePosition.Y;
+			local ViewBottom = ViewTop + TabButtonScrollingFrame.AbsoluteSize.Y;
+			local SelectedBottom = SelectedTop + SelectedHeight;
+			if SelectedBottom <= ViewTop or SelectedTop >= ViewBottom or TargetY < 0 or TargetY + IndicatorHeight > TabButtons.AbsoluteSize.Y then
 				if SelectionFrame.BackgroundTransparency < 1 then
 					Compkiller:_Animation(SelectionFrame, TweenInfo.new(0.1), { BackgroundTransparency = 1 });
 				end;
