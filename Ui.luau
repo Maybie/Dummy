@@ -829,6 +829,21 @@ function Compkiller:_RegisterPopup(Popup, Owner)
 	return Popup;
 end;
 
+function Compkiller:_GetPopupZIndex(Owner, Offset)
+	Offset = math.max(1, math.floor(tonumber(Offset) or 100));
+	local Base = 0;
+	if typeof(Owner) == "Instance" and Owner:IsA("GuiObject") then
+		Base = tonumber(Owner.ZIndex) or 0;
+	end;
+	for Popup in pairs(Compkiller.PopupOwners) do
+		if typeof(Popup) == "Instance" and Popup:IsA("GuiObject") and Popup.Parent
+			and Compkiller:_IsDescendantOf(Owner, Popup) then
+			Base = math.max(Base, tonumber(Popup.ZIndex) or 0);
+		end;
+	end;
+	return math.max(100, Base + Offset);
+end;
+
 function Compkiller:_PopupBelongsToRoot(Popup, Root, Seen)
 	Seen = Seen or {};
 	if Seen[Popup] then return false; end;
@@ -1887,7 +1902,7 @@ end;
 function Compkiller:_AddColorPickerPanel(Button: ImageButton , Callback: (Color: Color3) -> any?)
 	local Window = Compkiller:_GetWindowFromElement(Button);
 
-	local BaseZ_Index = math.random(1,15) * 100;
+	local BaseZ_Index = Compkiller:_GetPopupZIndex(Button, 100);
 
 	local ColorPickerWindow = Instance.new("Frame")
 	local UIStroke = Instance.new("UIStroke")
@@ -2756,7 +2771,7 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		local Element: ImageButton = Value:AddLink("Option");
 		Element.Visible = false
 
-		local BaseZ_Index = math.random(1,15) * 100;
+		local BaseZ_Index = Compkiller:_GetPopupZIndex(Element, 100);
 
 		local Signal = Compkiller.__SIGNAL(false);
 
@@ -2900,7 +2915,7 @@ end;
 function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	local Window = Compkiller:_GetWindowFromElement(BaseParent);
 
-	local BaseZ_Index = BaseParent.ZIndex + (math.random(1,15) * 100);
+	local BaseZ_Index = Compkiller:_GetPopupZIndex(BaseParent, 100);
 
 	local DropdownWindow = Instance.new("Frame")
 	local UIStroke = Instance.new("UIStroke")
