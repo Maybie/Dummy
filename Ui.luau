@@ -416,9 +416,6 @@ local Compkiller = {
 	ArcylicParent = workspace.CurrentCamera
 };
 
--- Late UI calls can run after the host script yields. Some executors resume that
--- thread with a lower identity, causing GUI writes to fail with
--- "lacking capability Plugin". Keep UI-owned work at the identity that created it.
 local __GetThreadIdentity = rawget(getgenv(), "getthreadidentity")
 	or rawget(getgenv(), "get_thread_identity")
 	or rawget(getgenv(), "getidentity")
@@ -3117,6 +3114,16 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 		return Default == Value;
 	end;
 
+	local function SyncCurrentMultiFromDefault()
+		CurrentMulti = {};
+		if not IsMulti then return; end;
+		for _, Item in next, Values or {} do
+			if IsDefault(Item) then
+				CurrentMulti[Item] = true;
+			end;
+		end;
+	end;
+
 	local function ApplyButtonStyle(ButtonData, Selected, Visible)
 		if not ButtonData then return; end;
 		Compkiller:_Animation(ButtonData.BlockText, TweenInfo.new(0.2), {
@@ -3135,9 +3142,8 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	end;
 
 	local UpdateDropdown = function()
-		CurrentMulti = {};
+		SyncCurrentMultiFromDefault();
 		for _, Value in next, Values or {} do
-			if IsMulti and IsDefault(Value) then CurrentMulti[Value] = true; end;
 			local ButtonData = DrawButton();
 			ButtonData.BlockText.Text = tostring(Value);
 			ButtonData.DropdownItem.Parent = ScrollingFrame;
@@ -3157,6 +3163,7 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 					for Item, Enabled in pairs(CurrentMulti) do
 						if Enabled == true then Snapshot[Item] = true; end;
 					end;
+					Default = Snapshot;
 					Compkiller:_DispatchControlCallback("Dropdown multi selection", Callback, Snapshot);
 				end);
 			else
@@ -3207,10 +3214,7 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	function Args:SetDefault(Value)
 		Default = Value;
 		if IsMulti then
-			CurrentMulti = {};
-			for _, Item in next, Values or {} do
-				if IsDefault(Item) then CurrentMulti[Item] = true; end;
-			end;
+			SyncCurrentMultiFromDefault();
 		else
 			SelectedButton = ButtonsByValue[Value];
 		end;
@@ -3229,6 +3233,9 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 		IsMulti = Multi == true;
 		Default = Def;
 		Values = Val;
+		if IsMulti then
+			SyncCurrentMultiFromDefault();
+		end;
 
 		if Vis and not SpamUpdate then
 			ClearDropdown();
