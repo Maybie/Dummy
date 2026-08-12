@@ -401,10 +401,9 @@ local function __ParentScreenGui(ScreenGuiObject: ScreenGui)
 	end;
 end;
 local Mouse = LocalPlayer:GetMouse();
-local CurrentCamera = workspace.CurrentCamera;
 
 local Compkiller = {
-	Version = '1.9.4-button-hover-tab-indicator-fix',
+	Version = '1.9.5-complete-blur-removal',
 	Logo = "rbxassetid://120245531583106",
 	Windows = {},
 	Scale = {
@@ -412,8 +411,7 @@ local Compkiller = {
 		Mobile = UDim2.new(0, 450,0, 375),
 		TabOpen = 185,
 		TabClose = 85,
-	},
-	ArcylicParent = workspace.CurrentCamera
+	}
 };
 
 local __GetThreadIdentity = rawget(getgenv(), "getthreadidentity")
@@ -610,11 +608,8 @@ Compkiller.Design = {
 
 Compkiller.UISettings = {
 	Motion = "Full",
-	Blur = true,
 	Scale = 1,
 };
-
-Compkiller.BlurControllers = {};
 
 function Compkiller:SetMotionMode(Mode)
 	Mode = tostring(Mode or "Full");
@@ -622,17 +617,6 @@ function Compkiller:SetMotionMode(Mode)
 		Mode = "Full";
 	end;
 	Compkiller.UISettings.Motion = Mode;
-end;
-
-function Compkiller:SetBlurEnabled(Enabled)
-	Compkiller.UISettings.Blur = Enabled == true;
-	for Controller in pairs(Compkiller.BlurControllers) do
-		if type(Controller) == "table" and type(Controller.SetEnabled) == "function" then
-			pcall(function()
-				Controller:SetEnabled(Compkiller.UISettings.Blur);
-			end);
-		end;
-	end;
 end;
 
 Compkiller.Elements = {
@@ -1023,106 +1007,6 @@ function Compkiller:_Input(Frame : Frame , Callback : () -> ()) : TextButton
 	end;
 
 	return Button;
-end;
-
-function Compkiller:GetCalculatePosition(planePos: number, planeNormal: number, rayOrigin: number, rayDirection: number) : number
-	local n = planeNormal;
-	local d = rayDirection;
-	local v = rayOrigin - planePos;
-
-	local num = (n.x * v.x) + (n.y * v.y) + (n.z * v.z);
-	local den = (n.x * d.x) + (n.y * d.y) + (n.z * d.z);
-	local a = -num / den;
-
-	return rayOrigin + (a * rayDirection);
-end;
-
-function Compkiller:_Blur(element : Frame , WindowRemote)
-	local Part = Instance.new('Part', Compkiller.ArcylicParent);
-	local DepthOfField = Instance.new('DepthOfFieldEffect', cloneref(game:GetService('Lighting')));
-	local BlockMesh = Instance.new("BlockMesh");
-	BlockMesh.Parent = Part;
-
-	Part.Material = Enum.Material.Glass;
-	Part.Transparency = 1;
-	Part.Reflectance = 1;
-	Part.CastShadow = false;
-	Part.Anchored = true;
-	Part.CanCollide = false;
-	Part.CanQuery = false;
-	Part.CollisionGroup = Compkiller:_RandomString();
-	Part.Size = Vector3.zero;
-	Part.Color = Color3.fromRGB(0,0,0);
-	Part.Name = Compkiller:_RandomString();
-
-	DepthOfField.Enabled = false;
-	DepthOfField.FarIntensity = 0;
-	DepthOfField.FocusDistance = 0;
-	DepthOfField.InFocusRadius = 1000;
-	DepthOfField.NearIntensity = 0;
-	DepthOfField.Name = Compkiller:_RandomString();
-
-	local Controller = { Enabled = Compkiller.UISettings.Blur == true };
-	local Connections = {};
-	local Destroyed = false;
-
-	local function UpdateFunction()
-		if Destroyed or not element or not element.Parent then return; end;
-		local IsWindowActive = WindowRemote and WindowRemote:GetValue() == true;
-		local Enabled = Controller.Enabled == true and Compkiller.UISettings.Blur == true and IsWindowActive;
-		DepthOfField.Enabled = Enabled;
-		if not Enabled then
-			DepthOfField.NearIntensity = 0;
-			Part.Transparency = 1;
-			Part.Size = Vector3.zero;
-			return;
-		end;
-
-		DepthOfField.NearIntensity = 1;
-		Part.Transparency = 0.97;
-		Part.Size = Vector3.new(1, 1, 1) * 0.01;
-
-		local corner0 = element.AbsolutePosition;
-		local corner1 = corner0 + element.AbsoluteSize;
-		local ray0 = CurrentCamera:ScreenPointToRay(corner0.X, corner0.Y, 1);
-		local ray1 = CurrentCamera:ScreenPointToRay(corner1.X, corner1.Y, 1);
-		local planeOrigin = CurrentCamera.CFrame.Position + CurrentCamera.CFrame.LookVector * (0.05 - CurrentCamera.NearPlaneZ);
-		local planeNormal = CurrentCamera.CFrame.LookVector;
-		local pos0 = Compkiller:GetCalculatePosition(planeOrigin, planeNormal, ray0.Origin, ray0.Direction);
-		local pos1 = Compkiller:GetCalculatePosition(planeOrigin, planeNormal, ray1.Origin, ray1.Direction);
-		pos0 = CurrentCamera.CFrame:PointToObjectSpace(pos0);
-		pos1 = CurrentCamera.CFrame:PointToObjectSpace(pos1);
-		BlockMesh.Offset = (pos0 + pos1) / 2;
-		BlockMesh.Scale = (pos1 - pos0) / 0.0101;
-		Part.CFrame = CurrentCamera.CFrame;
-	end;
-
-	function Controller:SetEnabled(Value)
-		Controller.Enabled = Value == true;
-		pcall(UpdateFunction);
-	end;
-
-	function Controller:Destroy()
-		if Destroyed then return; end;
-		Destroyed = true;
-		Compkiller.BlurControllers[Controller] = nil;
-		for _, Connection in ipairs(Connections) do
-			pcall(function() Connection:Disconnect() end);
-		end;
-		pcall(function() Part:Destroy() end);
-		pcall(function() DepthOfField:Destroy() end);
-	end;
-
-	table.insert(Connections, CurrentCamera:GetPropertyChangedSignal('CFrame'):Connect(function() pcall(UpdateFunction) end));
-	table.insert(Connections, element:GetPropertyChangedSignal('AbsolutePosition'):Connect(function() pcall(UpdateFunction) end));
-	table.insert(Connections, element:GetPropertyChangedSignal('AbsoluteSize'):Connect(function() pcall(UpdateFunction) end));
-	if WindowRemote and type(WindowRemote.Connect) == "function" then
-		table.insert(Connections, WindowRemote:Connect(function() pcall(UpdateFunction) end));
-	end;
-	element.Destroying:Connect(function() Controller:Destroy() end);
-	Compkiller.BlurControllers[Controller] = true;
-	pcall(UpdateFunction);
-	return Controller;
 end;
 
 function Compkiller:_AddDragBlacklist(Frame: Frame)
@@ -9012,19 +8896,6 @@ function Compkiller.new(Config : Window)
 			UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 			UIListLayout.Padding = UDim.new(0, 3)
 
-			local BackFrame = Instance.new("Frame")
-
-			BackFrame.Name = "BackFrame"
-			BackFrame.Parent = Watermark
-			BackFrame.AnchorPoint = Vector2.new(1, 0.5)
-			BackFrame.BackgroundTransparency = 1.000
-			BackFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
-			BackFrame.BorderSizePixel = 0
-			BackFrame.Position = UDim2.new(1, 0, 0.5, 0)
-			BackFrame.Size = UDim2.new(1, 30, 1, 0)
-
-			Compkiller:_Blur(BackFrame,WindowOpen);
-
 			UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
 				Compkiller:_Animation(Watermark,TweenInfo.new(0.4),{
 					Size = UDim2.new(0, UIListLayout.AbsoluteContentSize.X + 8, 0, 23)
@@ -9197,18 +9068,6 @@ function Compkiller.new(Config : Window)
 		WindowArgs.Profile = config.UserProfile or WindowArgs.Profile;
 	end;
 
-	local BlurElement = Instance.new("Frame")
-	BlurElement.Name = "BlurElement"
-	BlurElement.Parent = MainFrame
-	BlurElement.AnchorPoint = Vector2.new(1, 0.5)
-	BlurElement.BackgroundTransparency = 1
-	BlurElement.BorderSizePixel = 0
-	BlurElement.Position = UDim2.new(1, -5, 0.5, 0)
-	BlurElement.Size = UDim2.new(1, 0, 1, 0)
-	BlurElement.ZIndex = -100
-	BlurElement.Active = true
-	Compkiller:_Blur(BlurElement, WindowOpen)
-
 	local MovementFrame = Instance.new("Frame")
 	MovementFrame.Name = "MovementFrame"
 	MovementFrame.Parent = MainFrame
@@ -9232,7 +9091,6 @@ function Compkiller.new(Config : Window)
 		local TabWidth = TabFrame.AbsoluteSize.X - 35;
 		if TabWidth ~= LastTabWidth then
 			LastTabWidth = TabWidth;
-			BlurElement.Size = UDim2.new(1, TabWidth, 1, 0);
 			MovementFrame.Size = UDim2.new(1, TabWidth, 1, 0);
 		end;
 	end;
@@ -9439,22 +9297,14 @@ function Compkiller.new(Config : Window)
 			Callback = function(Value) Compkiller:SetMotionMode(Value) end
 		});
 		Performance:AddToggle({
-			Name = "Blur",
-			Default = Compkiller.UISettings.Blur,
-			Flag = Configuration.FlagPrefix and (Configuration.FlagPrefix .. "_Blur") or nil,
-			Callback = function(Value) Compkiller:SetBlurEnabled(Value == true) end
-		});
-		Performance:AddToggle({
 			Name = "Performance Mode",
 			Default = false,
 			Flag = Configuration.FlagPrefix and (Configuration.FlagPrefix .. "_Performance") or nil,
 			Callback = function(Value)
 				if Value == true then
 					Compkiller:SetMotionMode("Reduced");
-					Compkiller:SetBlurEnabled(false);
 				else
 					Compkiller:SetMotionMode("Full");
-					Compkiller:SetBlurEnabled(true);
 				end;
 			end
 		});
