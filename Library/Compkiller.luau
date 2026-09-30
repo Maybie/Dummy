@@ -77,11 +77,6 @@ export type Notify = {
 	Duration: number
 };
 
-export type Watermark = {
-	Icon: string,
-	Text: string
-};
-
 export type TabConfig = {
 	Name: string,
 	Icon: string,
@@ -115,6 +110,7 @@ export type Toggle = {
 	Default: boolean,
 	Flag: string | nil,
 	Risky: boolean,
+	StackOnOverflow: boolean?,
 	Callback: (Value: boolean) -> any?
 };
 
@@ -138,6 +134,7 @@ export type ColorPicker = {
 	Default: Color3,
 	Flag: string | nil,
 	Transparency: number,
+	StackOnOverflow: boolean?,
 	Callback: (Value: Color3 , Trans: number) -> any?
 };
 
@@ -212,6 +209,7 @@ export type EmptyState = {
 export type Keybind = {
 	Name: string,
 	Default: string | Enum.KeyCode,
+	StackOnOverflow: boolean?,
 	Callback: (Value: string) -> any,
 	Blacklist: {string | Enum.KeyCode}
 };
@@ -237,11 +235,8 @@ pcall(function()
 	
 end);
 
-if identifyexecutor() == 'Salad' then
-	getgenv().hookmetamethod = newcclosure(function(...) end)
-end
-
-getgenv = getgenv or getfenv;
+local getgenv = type(getgenv) == "function" and getgenv or getfenv;
+local cloneref: cloneref = type(cloneref) == "function" and cloneref or function(value) return value end;
 
 
 if cloneref(game:GetService('RunService')):IsStudio() then
@@ -365,7 +360,6 @@ if cloneref(game:GetService('RunService')):IsStudio() then
 end;
 
 
-local cloneref: cloneref = cloneref or function(f) return f end;
 local TweenService: TweenService = cloneref(game:GetService('TweenService'));
 local UserInputService: UserInputService = cloneref(game:GetService('UserInputService'));
 local TextService: TextService = cloneref(game:GetService('TextService'));
@@ -403,8 +397,7 @@ end;
 local Mouse = LocalPlayer:GetMouse();
 
 local Compkiller = {
-	Version = '1.9.5-complete-blur-removal',
-	Logo = "rbxassetid://120245531583106",
+	Logo = "rbxassetid://138815043450226",
 	Windows = {},
 	Scale = {
 		Window = UDim2.new(0, 456,0, 499),
@@ -577,12 +570,26 @@ function Compkiller:GetUIDiagnostics()
 	};
 end;
 
-local LucideIcons: table = loadstring(game:HttpGet('https://raw.githubusercontent.com/x2neptunereal/Alchemy/main/ui/windui/icon.lua'))();
+local LucideIcons: table = { Icons = {}, Spritesheets = {} };
+do
+	local ok, icons = pcall(function()
+		if type(loadstring) ~= "function" then return nil end;
+		local sourceCode = game:HttpGet('https://raw.githubusercontent.com/x2neptunereal/Alchemy/main/ui/windui/icon.lua');
+		local chunk = loadstring(sourceCode);
+		return chunk and chunk();
+	end);
+	if ok and type(icons) == "table" and type(icons.Icons) == "table" and type(icons.Spritesheets) == "table" then
+		LucideIcons = icons;
+	else
+		warn("[Compkiller] Icons unavailable; the UI will continue without named icons.");
+	end;
+end;
 
 Compkiller.Colors = {
-	Highlight = Color3.fromRGB(17, 238, 253),
-	Toggle = Color3.fromRGB(14, 203, 213),
+	Highlight = Color3.fromRGB(157, 93, 255),
+	Toggle = Color3.fromRGB(128, 74, 224),
 	Risky = Color3.fromRGB(251, 255, 39),
+	Danger = Color3.fromRGB(239, 68, 68),
 	BGDBColor = Color3.fromRGB(22, 24, 29),
 	BlockColor = Color3.fromRGB(28, 29, 34),
 	StrokeColor = Color3.fromRGB(37, 38, 43),
@@ -593,6 +600,71 @@ Compkiller.Colors = {
 	LineColor = Color3.fromRGB(65, 65, 65),
 	HighStrokeColor = Color3.fromRGB(55, 56, 63),
 };
+
+local DefaultColors = table.clone(Compkiller.Colors);
+
+function Compkiller:CheckRequirements(requirements)
+	if type(requirements) == "string" then
+		requirements = Compkiller.Dependencies[requirements] or { requirements };
+	end;
+	local missing = {};
+	local environment = getgenv();
+	for _, requirement in ipairs(requirements or {}) do
+		local available = false;
+		if type(requirement) == "string" then
+			available = type(environment[requirement]) == "function";
+		elseif type(requirement) == "table" then
+			for _, alias in ipairs(requirement) do
+				if type(environment[alias]) == "function" then available = true; break end;
+			end;
+		end;
+		if not available then
+			table.insert(missing, type(requirement) == "table" and table.concat(requirement, " / ") or tostring(requirement));
+		end;
+	end;
+	return #missing == 0, missing;
+end;
+
+Compkiller.Dependencies = {};
+
+function Compkiller:DefineDependencies(definitions)
+	for name, requirements in pairs(definitions or {}) do
+		if type(name) == "string" then self.Dependencies[name] = requirements; end;
+	end;
+	return self.Dependencies;
+end;
+
+function Compkiller:WithRequirements(config, requirements)
+	local copy = table.clone(config or {});
+	copy.Requires = type(requirements) == "string" and (self.Dependencies[requirements] or { requirements }) or requirements;
+	return copy;
+end;
+
+function Compkiller:Guard(requirements, callback, fallback)
+	return function(...)
+		local available = self:CheckRequirements(requirements);
+		if not available then
+			local reason = self:UnavailableReason(requirements);
+			self:_ReportUnavailable(reason);
+			if type(fallback) == "function" then return fallback(reason, ...); end;
+			return false, reason;
+		end;
+		return callback(...);
+	end;
+end;
+
+function Compkiller:UnavailableReason(requirements)
+	local available, missing = self:CheckRequirements(requirements);
+	if available then return nil end;
+	return "Executor does not support: " .. table.concat(missing, ", ");
+end;
+
+function Compkiller:_ReportUnavailable(reason)
+	warn("[Compkiller] " .. tostring(reason));
+	if self.CompatibilityNotifier then
+		pcall(self.CompatibilityNotifier, reason);
+	end;
+end;
 
 Compkiller.Design = {
 	Radius = 7,
@@ -607,22 +679,19 @@ Compkiller.Design = {
 };
 
 Compkiller.UISettings = {
-	Motion = "Full",
+	Motion = "On",
 	Scale = 1,
 };
 
 function Compkiller:SetMotionMode(Mode)
-	Mode = tostring(Mode or "Full");
-	if Mode ~= "Full" and Mode ~= "Reduced" and Mode ~= "Off" then
-		Mode = "Full";
-	end;
-	Compkiller.UISettings.Motion = Mode;
+	Compkiller.UISettings.Motion = Mode == "Off" and "Off" or "On";
 end;
 
 Compkiller.Elements = {
 	Highlight = {},
 	DropHighlight = {},
 	Risky = {},
+	Danger = {},
 	BGDBColor = {},
 	BlockColor = {},
 	StrokeColor = {},
@@ -893,7 +962,7 @@ Compkiller.Lucide = {
                 return {Image = r, ImageRectSize = q.ImageRectSize, ImageRectPosition = q.ImageRectPosition};
             end;
         end;
-        if type(p) == "string" and not p:find("rbxassetid://") then
+        if type(p) == "string" and p:match("^%d+$") then
             return {
                 Image = "rbxassetid://" .. p,
                 ImageRectSize = Vector2.new(0, 0),
@@ -905,9 +974,10 @@ Compkiller.Lucide = {
                 ImageRectSize = Vector2.new(0, 0),
                 ImageRectPosition = Vector2.new(0, 0)
             };
-        else
-            return p;
+        elseif type(p) == "string" and p:find("rbxassetid://", 1, true) then
+            return { Image = p, ImageRectSize = Vector2.new(0, 0), ImageRectPosition = Vector2.new(0, 0) };
         end;
+        return { Image = "", ImageRectSize = Vector2.new(0, 0), ImageRectPosition = Vector2.new(0, 0) };
 	end;
 };
 
@@ -936,13 +1006,13 @@ function Compkiller:_ConvertArgs(Config: table)
 			b[i] = v
 		end
 	end
-	if not b.Rounding then
+	if b.Round == nil and b.Rounding ~= nil then
 		b.Round = b.Rounding
 	end
 	if not b.Type and typeof(b.Suffix) == 'table' then
 		b.Type = typeof(b.Suffix.Text) == 'function' and b.Suffix.Text() or b.Suffix.Text
 	end
-	if not b.Flag then
+	if not b.Flag and type(b.Name) == "string" then
 		local ExistedFlags: table = {}
 
 		local Flag = b.Name:gsub(' ', '_')
@@ -974,16 +1044,17 @@ end;
 function Compkiller:_Animation(Self: Instance , Info: TweenInfo , Property :{[K] : V})
 	if not Self then return nil; end;
 	return Compkiller:_WithUICapability(function()
-		local Motion = tostring((Compkiller.UISettings and Compkiller.UISettings.Motion) or "Full");
+		local Changed = {};
+		for Key, Value in pairs(Property or {}) do
+			if Self[Key] ~= Value then Changed[Key] = Value; end;
+		end;
+		if next(Changed) == nil then return nil; end;
+		local Motion = tostring((Compkiller.UISettings and Compkiller.UISettings.Motion) or "On");
 		if Motion == "Off" then
-			for Key, Value in pairs(Property or {}) do Self[Key] = Value; end;
+			for Key, Value in pairs(Changed) do Self[Key] = Value; end;
 			return nil;
 		end;
-		local TweenInfoValue = Info or TweenInfo.new(0.25);
-		if Motion == "Reduced" then
-			TweenInfoValue = TweenInfo.new(math.min(TweenInfoValue.Time, 0.07), TweenInfoValue.EasingStyle, TweenInfoValue.EasingDirection);
-		end;
-		local Tween = TweenService:Create(Self, TweenInfoValue, Property);
+		local Tween = TweenService:Create(Self, Info or TweenInfo.new(0.25), Changed);
 		Tween:Play();
 		return Tween;
 	end);
@@ -1667,6 +1738,7 @@ function Compkiller:_CreateBlock(Signal)
 	BlockText.TextSize = 14.000
 	BlockText.TextTransparency = 0.300
 	BlockText.TextXAlignment = Enum.TextXAlignment.Left
+	BlockText.TextTruncate = Enum.TextTruncate.AtEnd
 	
 	table.insert(Compkiller.Elements.SwitchColor , {
 		Element = BlockText,
@@ -1689,6 +1761,36 @@ function Compkiller:_CreateBlock(Signal)
 	UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 	UIListLayout.Padding = UDim.new(0, 8)
+
+	local AutoStack = false;
+	local function UpdateBlockTextWidth()
+		local Reserved = math.max(0, UIListLayout.AbsoluteContentSize.X);
+		local Available = math.max(0, GlobalBlock.AbsoluteSize.X - 24 - Reserved);
+		local TextWidth = TextService:GetTextSize(BlockText.Text, BlockText.TextSize, BlockText.Font, Vector2.new(math.huge, 25)).X;
+		local Stacked = AutoStack and Reserved > 0 and TextWidth > Available;
+		if Stacked then
+			local FullWidth = math.max(40, GlobalBlock.AbsoluteSize.X - 24);
+			local TextHeight = math.max(25, TextService:GetTextSize(BlockText.Text, BlockText.TextSize, BlockText.Font, Vector2.new(FullWidth, math.huge)).Y);
+			GlobalBlock.Size = UDim2.new(1, -1, 0, TextHeight + 29);
+			BlockText.AnchorPoint = Vector2.zero;
+			BlockText.Position = UDim2.fromOffset(12, 2);
+			BlockText.Size = UDim2.new(1, -24, 0, TextHeight);
+			BlockText.TextWrapped = true;
+			BlockText.TextTruncate = Enum.TextTruncate.None;
+			LinkValues.Position = UDim2.new(1, -12, 1, -12);
+		else
+			GlobalBlock.Size = UDim2.new(1, -1, 0, 30);
+			BlockText.AnchorPoint = Vector2.new(0, 0.5);
+			BlockText.Position = UDim2.new(0, 12, 0.5, 0);
+			BlockText.Size = UDim2.new(1, -(24 + Reserved), 0, 25);
+			BlockText.TextWrapped = false;
+			BlockText.TextTruncate = Enum.TextTruncate.AtEnd;
+			LinkValues.Position = UDim2.new(1, -12, 0.5, 0);
+		end;
+	end;
+	UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateBlockTextWidth);
+	GlobalBlock:GetPropertyChangedSignal("AbsoluteSize"):Connect(UpdateBlockTextWidth);
+	UpdateBlockTextWidth();
 
 	BlockLine.Name = "BlockLine"
 	BlockLine.Parent = GlobalBlock
@@ -1714,6 +1816,12 @@ function Compkiller:_CreateBlock(Signal)
 
 	function rep:SetText(Text)
 		BlockText.Text = Text;
+		UpdateBlockTextWidth();
+	end;
+
+	function rep:SetStackOnOverflow(Value)
+		AutoStack = Value == true;
+		UpdateBlockTextWidth();
 	end;
 
 	function rep:SetTextColor(Color)
@@ -2615,9 +2723,12 @@ function Compkiller:_LoadOption(Value , TabSignal)
 			Callback = function() end;
 		});
 
+		local Reason = Compkiller:UnavailableReason(Config.Requires);
+		local Enabled = Config.Disabled ~= true and Reason == nil;
 		local Toggle = Value:AddLink("Toggle" , Config.Default);
 
 		Toggle.Input.MouseButton1Click:Connect(function()
+			if not Enabled then Compkiller:_ReportUnavailable(Reason or "Control disabled"); return end;
 			Config.Default = not Config.Default;
 
 			Toggle.ChangeValue(Config.Default);
@@ -2630,11 +2741,23 @@ function Compkiller:_LoadOption(Value , TabSignal)
 		Args.Flag = Config.Flag
 
 		function Args:SetValue(value)
+			if value == true and not Enabled then Compkiller:_ReportUnavailable(Reason or "Control disabled"); return false end;
 			Config.Default = value;
 
 			Toggle.ChangeValue(Config.Default);
 
 			Config.Callback(Config.Default);
+		end;
+
+		function Args:SetEnabled(value)
+			Enabled = value == true and Reason == nil;
+			Toggle.Input.Active = Enabled;
+			Toggle.Input.AutoButtonColor = Enabled;
+			if not Enabled and Config.Default then self:SetValue(false) end;
+		end;
+
+		function Args:GetUnavailableReason()
+			return Reason;
 		end;
 
 		function Args:GetValue()
@@ -2645,6 +2768,7 @@ function Compkiller:_LoadOption(Value , TabSignal)
 			Compkiller:RegisterFlag(Config.Flag, Args, { Type = "toggle", Order = tonumber(Config.ConfigOrder) });
 		end;
 
+		Args:SetEnabled(Enabled);
 		return Args;
 	end;
 
@@ -3168,6 +3292,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Default = false,
 			Flag = nil,
 			Risky = false,
+			StackOnOverflow = false,
 			Callback = function() end;
 		});
 
@@ -3176,6 +3301,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		Block:SetParent(Parent);
 
 		Block:SetText(Config.Name);
+		Block:SetStackOnOverflow(Config.StackOnOverflow);
 
 		if Config.Risky then
 			Block:SetTextColor(Compkiller.Colors.Risky);
@@ -3185,9 +3311,12 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 
 		Block:SetVisible(Signal:GetValue());
 
+		local Reason = Compkiller:UnavailableReason(Config.Requires);
+		local Enabled = Config.Disabled ~= true and Reason == nil;
 		local Toggle = Block:AddLink('Toggle' , Config.Default);
 
 		Toggle.Input.MouseButton1Click:Connect(function()
+			if not Enabled then Compkiller:_ReportUnavailable(Reason or "Control disabled"); return end;
 			Config.Default = not Config.Default;
 
 			Toggle.ChangeValue(Config.Default);
@@ -3202,6 +3331,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		Args.Flag = Config.Flag;
 
 		function Args:SetValue(value)
+			if value == true and not Enabled then Compkiller:_ReportUnavailable(Reason or "Control disabled"); return false end;
 			Config.Default = value;
 
 			Toggle.ChangeValue(Config.Default);
@@ -3219,11 +3349,24 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		Args.Link = Compkiller:_LoadOption(Block);
 		Args.Options = Args.Link:AddOption();
 
-		if typeof(Config.Content) == 'string' then
+		if Reason then
+			Args.Link:AddHelper({ Text = Reason });
+		elseif typeof(Config.Content) == 'string' then
 			Args.Link:AddHelper({
 				Text = Config.Content
 			})
 		end
+
+		function Args:SetEnabled(value)
+			Enabled = value == true and Reason == nil;
+			Toggle.Input.Active = Enabled;
+			Toggle.Input.AutoButtonColor = Enabled;
+			if not Enabled and Config.Default then self:SetValue(false) end;
+		end;
+
+		function Args:GetUnavailableReason()
+			return Reason;
+		end;
 
 		function Args:GetValue()
 			return Config.Default;
@@ -3234,6 +3377,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		end;
 
 
+		Args:SetEnabled(Enabled);
 		return Args;
 	end;
 
@@ -3242,6 +3386,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Name = "Keybind",
 			Default = nil,
 			Flag = nil,
+			StackOnOverflow = false,
 			Callback = function() end;
 			Blacklist = {}
 		});
@@ -3251,6 +3396,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		Block:SetParent(Parent);
 
 		Block:SetText(Config.Name);
+		Block:SetStackOnOverflow(Config.StackOnOverflow);
 
 		Block:SetLine(EnabledLine);
 
@@ -3334,6 +3480,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Default = Color3.fromRGB(255,255,255),
 			Flag = nil,
 			Transparency = 0,
+			StackOnOverflow = false,
 			Callback = function() end;
 		});
 
@@ -3342,6 +3489,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		Block:SetParent(Parent);
 
 		Block:SetText(Config.Name);
+		Block:SetStackOnOverflow(Config.StackOnOverflow);
 
 		Block:SetLine(EnabledLine);
 
@@ -3414,9 +3562,11 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		});
 
 		local Style = string.lower(tostring(Config.Style or "Secondary"));
+		local Reason = Compkiller:UnavailableReason(Config.Requires);
+		if Reason then Config.Description = Reason end;
 		local HasDescription = tostring(Config.Description or "") ~= "";
 		local Height = HasDescription and 48 or Compkiller.Design.ControlHeight;
-		local Enabled = Config.Disabled ~= true;
+		local Enabled = Config.Disabled ~= true and Reason == nil;
 		local BaseCardTransparency = 0.18;
 		local BaseStrokeTransparency = 0.34;
 
@@ -3448,6 +3598,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		Card.Size = UDim2.new(1, -14, 1, -4);
 		Card.BorderSizePixel = 0;
 		Card.ZIndex = Zindex + 6;
+		Card.ClipsDescendants = true;
 		Scale.Parent = Card;
 
 		CardCorner.CornerRadius = UDim.new(0, Compkiller.Design.Radius);
@@ -3485,7 +3636,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 				Accent.Visible = false;
 				Title.TextColor3 = Compkiller.Colors.SwitchColor;
 				Description.TextColor3 = Compkiller.Colors.SwitchColor;
-			elseif Style == "risky" or Style == "danger" then
+			elseif Style == "risky" then
 				BaseCardTransparency = 0.16;
 				BaseStrokeTransparency = 0.48;
 				Card.BackgroundColor3 = Compkiller.Colors.BlockBackground;
@@ -3495,6 +3646,17 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 				Accent.Visible = true;
 				Accent.BackgroundColor3 = Compkiller.Colors.Risky;
 				Title.TextColor3 = Compkiller.Colors.Risky;
+				Description.TextColor3 = Compkiller.Colors.SwitchColor;
+			elseif Style == "danger" then
+				BaseCardTransparency = 0.10;
+				BaseStrokeTransparency = 0.22;
+				Card.BackgroundColor3 = Compkiller.Colors.BlockBackground;
+				Card.BackgroundTransparency = BaseCardTransparency;
+				CardStroke.Color = Compkiller.Colors.Danger;
+				CardStroke.Transparency = BaseStrokeTransparency;
+				Accent.Visible = true;
+				Accent.BackgroundColor3 = Compkiller.Colors.Danger;
+				Title.TextColor3 = Compkiller.Colors.Danger;
 				Description.TextColor3 = Compkiller.Colors.SwitchColor;
 			else
 				BaseCardTransparency = 0.18;
@@ -3529,6 +3691,11 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 				Icon.Image = tostring(IconData or "");
 			end;
 		end;
+		if Style == "risky" then
+			Icon.ImageColor3 = Compkiller.Colors.Risky;
+		elseif Style == "danger" then
+			Icon.ImageColor3 = Compkiller.Colors.Danger;
+		end;
 
 		local TextLeft = Icon.Visible and 42 or 14;
 		Title.Name = "Title";
@@ -3543,6 +3710,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		Title.TextTransparency = 0.04;
 		Title.TextXAlignment = (Style == "primary" and not Icon.Visible and not HasDescription and Config.Badge == nil) and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left;
 		Title.TextYAlignment = Enum.TextYAlignment.Center;
+		Title.TextTruncate = Enum.TextTruncate.AtEnd;
 		if Title.TextXAlignment == Enum.TextXAlignment.Center then
 			Title.Position = UDim2.new(0, 12, HasDescription and 0 or 0.5, HasDescription and 0 or 0);
 			Title.Size = UDim2.new(1, -24, 0, HasDescription and 20 or Height);
@@ -3560,6 +3728,9 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		Description.TextSize = Compkiller.Design.DescriptionSize;
 		Description.TextTransparency = 0.58;
 		Description.TextXAlignment = Enum.TextXAlignment.Left;
+		Description.TextYAlignment = Enum.TextYAlignment.Top;
+		Description.TextWrapped = true;
+		Description.TextTruncate = Enum.TextTruncate.AtEnd;
 		Description.Visible = HasDescription;
 		Description.ZIndex = Zindex + 8;
 
@@ -3575,11 +3746,35 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		Badge.Text = tostring(Config.Badge or "");
 		Badge.TextColor3 = Compkiller.Colors.SwitchColor;
 		Badge.TextSize = 10;
+		Badge.TextTruncate = Enum.TextTruncate.AtEnd;
 		Badge.TextTransparency = 0.22;
 		Badge.Visible = Config.Badge ~= nil and tostring(Config.Badge) ~= "";
 		Badge.ZIndex = Zindex + 8;
 		BadgeCorner.CornerRadius = UDim.new(1, 0);
 		BadgeCorner.Parent = Badge;
+
+		local function UpdateTextLayout()
+			local hasBody = Description.Text ~= "";
+			local rightInset = Badge.Visible and 60 or 14;
+			local width = math.max(80, Card.AbsoluteSize.X - TextLeft - rightInset);
+			local bodyHeight = hasBody and math.max(16, TextService:GetTextSize(Description.Text, Description.TextSize, Description.Font, Vector2.new(width, math.huge)).Y) or 0;
+			local cardHeight = hasBody and (32 + bodyHeight) or Compkiller.Design.ControlHeight;
+			Root.Size = UDim2.new(1, -1, 0, cardHeight + 4);
+			Title.AnchorPoint = Vector2.new(0, hasBody and 0 or 0.5);
+			Title.Position = UDim2.new(0, Title.TextXAlignment == Enum.TextXAlignment.Center and 12 or TextLeft, hasBody and 0 or 0.5, hasBody and 5 or 0);
+			Title.Size = UDim2.new(1, Title.TextXAlignment == Enum.TextXAlignment.Center and -24 or -(TextLeft + rightInset), 0, hasBody and 20 or cardHeight);
+			Description.Position = UDim2.fromOffset(TextLeft, 25);
+			Description.Size = UDim2.new(1, -(TextLeft + rightInset), 0, bodyHeight);
+			Description.Visible = hasBody;
+		end;
+		UpdateTextLayout();
+		local measuredCardWidth = Card.AbsoluteSize.X;
+		Card:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			if Card.AbsoluteSize.X ~= measuredCardWidth then
+				measuredCardWidth = Card.AbsoluteSize.X;
+				UpdateTextLayout();
+			end;
+		end);
 
 		Input.Name = "Input";
 		Input.Parent = Card;
@@ -3598,17 +3793,27 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		elseif Style == "ghost" then
 			table.insert(Compkiller.Elements.BlockColor, { Element = Card, Property = "BackgroundColor3" });
 			table.insert(Compkiller.Elements.StrokeColor, { Element = CardStroke, Property = "Color" });
-		elseif Style == "risky" or Style == "danger" then
+		elseif Style == "risky" then
 			table.insert(Compkiller.Elements.BlockBackground, { Element = Card, Property = "BackgroundColor3" });
 			table.insert(Compkiller.Elements.Risky, { Element = CardStroke, Property = "Color" });
 			table.insert(Compkiller.Elements.Risky, { Element = Accent, Property = "BackgroundColor3" });
+		elseif Style == "danger" then
+			table.insert(Compkiller.Elements.BlockBackground, { Element = Card, Property = "BackgroundColor3" });
+			table.insert(Compkiller.Elements.Danger, { Element = CardStroke, Property = "Color" });
+			table.insert(Compkiller.Elements.Danger, { Element = Accent, Property = "BackgroundColor3" });
 		else
 			table.insert(Compkiller.Elements.BlockBackground, { Element = Card, Property = "BackgroundColor3" });
 			table.insert(Compkiller.Elements.StrokeColor, { Element = CardStroke, Property = "Color" });
 			table.insert(Compkiller.Elements.Highlight, { Element = Accent, Property = "BackgroundColor3" });
 		end;
-		table.insert(Compkiller.Elements.Highlight, { Element = Icon, Property = "ImageColor3" });
-		table.insert(Compkiller.Elements.SwitchColor, { Element = Title, Property = "TextColor3" });
+		local StyleColorKey = Style == "risky" and "Risky" or (Style == "danger" and "Danger" or nil);
+		if StyleColorKey then
+			table.insert(Compkiller.Elements[StyleColorKey], { Element = Icon, Property = "ImageColor3" });
+			table.insert(Compkiller.Elements[StyleColorKey], { Element = Title, Property = "TextColor3" });
+		else
+			table.insert(Compkiller.Elements.Highlight, { Element = Icon, Property = "ImageColor3" });
+			table.insert(Compkiller.Elements.SwitchColor, { Element = Title, Property = "TextColor3" });
+		end;
 		table.insert(Compkiller.Elements.SwitchColor, { Element = Description, Property = "TextColor3" });
 		table.insert(Compkiller.Elements.DropColor, { Element = Badge, Property = "BackgroundColor3" });
 		table.insert(Compkiller.Elements.SwitchColor, { Element = Badge, Property = "TextColor3" });
@@ -3633,7 +3838,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			if Enabled then Compkiller:_Animation(Scale, TweenInfo.new(0.10), { Scale = 1.01 }) end;
 		end);
 		Input.MouseButton1Click:Connect(function()
-			if Enabled then Config.Callback() end;
+			if Enabled then Config.Callback() else Compkiller:_ReportUnavailable(Reason or "Control disabled") end;
 		end);
 
 		local Args = {
@@ -3650,17 +3855,18 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		function Args:SetDescription(Value)
 			Config.Description = tostring(Value or "");
 			Description.Text = Config.Description;
-			Description.Visible = Config.Description ~= "";
+			UpdateTextLayout();
 		end;
 
 		function Args:SetBadge(Value)
 			Config.Badge = Value;
 			Badge.Text = tostring(Value or "");
 			Badge.Visible = Value ~= nil and tostring(Value) ~= "";
+			UpdateTextLayout();
 		end;
 
 		function Args:SetEnabled(Value)
-			Enabled = Value == true;
+			Enabled = Value == true and Reason == nil;
 			Config.Disabled = not Enabled;
 			Card.BackgroundTransparency = Enabled and BaseCardTransparency or 0.82;
 			Title.TextTransparency = Enabled and 0.04 or 0.58;
@@ -3669,7 +3875,11 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		end;
 
 		function Args:Click()
-			if Enabled then Config.Callback() end;
+			if Enabled then Config.Callback() else Compkiller:_ReportUnavailable(Reason or "Control disabled") end;
+		end;
+
+		function Args:GetUnavailableReason()
+			return Reason;
 		end;
 
 		function Args:GetValue()
@@ -3931,7 +4141,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 					Accent.Visible = false;
 					ApplyColor(Title, "TextColor3", ButtonConfig.TextColor or ButtonConfig.Color, HasCustomColor and "Highlight" or "SwitchColor");
 					ApplyColor(Icon, "ImageColor3", ButtonConfig.TextColor or ButtonConfig.Color, HasCustomColor and "Highlight" or "SwitchColor");
-				elseif Style == "risky" or Style == "danger" then
+				elseif Style == "risky" then
 					BaseCardTransparency = 0.16;
 					BaseStrokeTransparency = 0.48;
 					ApplyColor(Card, "BackgroundColor3", nil, "BlockBackground");
@@ -3940,6 +4150,15 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 					ApplyColor(Accent, "BackgroundColor3", ButtonConfig.Color, "Risky");
 					ApplyColor(Title, "TextColor3", ButtonConfig.TextColor or ButtonConfig.Color, "Risky");
 					ApplyColor(Icon, "ImageColor3", ButtonConfig.TextColor or ButtonConfig.Color, "Risky");
+				elseif Style == "danger" then
+					BaseCardTransparency = 0.10;
+					BaseStrokeTransparency = 0.22;
+					ApplyColor(Card, "BackgroundColor3", nil, "BlockBackground");
+					ApplyColor(Stroke, "Color", ButtonConfig.Color, "Danger");
+					Accent.Visible = true;
+					ApplyColor(Accent, "BackgroundColor3", ButtonConfig.Color, "Danger");
+					ApplyColor(Title, "TextColor3", ButtonConfig.TextColor or ButtonConfig.Color, "Danger");
+					ApplyColor(Icon, "ImageColor3", ButtonConfig.TextColor or ButtonConfig.Color, "Danger");
 				else
 					BaseCardTransparency = 0.18;
 					BaseStrokeTransparency = 0.34;
@@ -4453,6 +4672,26 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 			Callback = function() end
 		});
 
+		Config.Min = tonumber(Config.Min) or 0;
+		Config.Max = tonumber(Config.Max) or 100;
+		Config.Round = math.max(0, math.floor(tonumber(Config.Round) or 0));
+		local function NormalizeValue(Value)
+			if type(Value) == "string" then
+				local Text = Value:gsub(",", ".");
+				local Suffix = tostring(Config.Type);
+				if Suffix ~= "" and Text:sub(-#Suffix) == Suffix then Text = Text:sub(1, -(#Suffix + 1)); end;
+				Value = tonumber(Text:match("[-+]?%d*%.?%d+"));
+			end;
+			Value = tonumber(Value);
+			if Value == nil then return nil; end;
+			return Compkiller:_Rounding(math.clamp(Value, Config.Min, Config.Max), Config.Round);
+		end;
+		local function ValueScale(Value)
+			local Range = Config.Max - Config.Min;
+			return Range == 0 and 0 or math.clamp((Value - Config.Min) / Range, 0, 1);
+		end;
+		Config.Default = NormalizeValue(Config.Default) or Config.Min;
+
 		local Slider = Instance.new("Frame")
 		local BlockText = Instance.new("TextLabel")
 		local BlockLine = Instance.new("Frame")
@@ -4547,7 +4786,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		SliderInput.BorderColor3 = Color3.fromRGB(0, 0, 0)
 		SliderInput.BorderSizePixel = 0
 		SliderInput.Position = UDim2.new(0, 0, 0.5, 0)
-		SliderInput.Size = UDim2.new((Config.Default - Config.Min) / (Config.Max - Config.Min), 0, 1, 0)
+		SliderInput.Size = UDim2.new(ValueScale(Config.Default), 0, 1, 0)
 		SliderInput.ZIndex = Zindex + 4
 
 		table.insert(Compkiller.Elements.Highlight,{
@@ -4622,15 +4861,12 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 
 			local Main = ((Config.Max - Config.Min) * SizeScale) + Config.Min;
 
-			local Value = Compkiller:_Rounding(Main,Config.Round);
+			local Value = NormalizeValue(Main);
+			local Size = ValueScale(Value);
 
-			local PositionX = UDim2.fromScale(SizeScale, 1);
-
-			local Size = (Value - Config.Min) / (Config.Max - Config.Min);
-
-			TweenService:Create(SliderInput , TweenInfo.new(0.2),{
+			Compkiller:_Animation(SliderInput, TweenInfo.new(0.2), {
 				Size = UDim2.new(Size, 0, 1, 0)
-			}):Play();
+			});
 
 			Config.Default = Value;
 
@@ -4640,23 +4876,18 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		end;
 
 		ValueText.FocusLost:Connect(function()
-            local Value = tonumber(ValueText.Text)
-            if Value then
-                local FakedValue = Value > Config.Max and Config.Max or Value
-
-                local Size = (FakedValue - Config.Min) / (Config.Max - Config.Min);
-
-                TweenService:Create(SliderInput , TweenInfo.new(0.2),{
-                    Size = UDim2.new(Size, 0, 1, 0)
-                }):Play();
-
-                Config.Default = Value;
-
-                ValueText.Text = tostring(Config.Default)..tostring(Config.Type)
-
-                Config.Callback(Value)
-            end
-        end)
+			local Value = NormalizeValue(ValueText.Text);
+			if Value == nil then
+				ValueText.Text = tostring(Config.Default) .. tostring(Config.Type);
+				return;
+			end;
+			Compkiller:_Animation(SliderInput, TweenInfo.new(0.2), {
+				Size = UDim2.new(ValueScale(Value), 0, 1, 0)
+			});
+			Config.Default = Value;
+			ValueText.Text = tostring(Config.Default) .. tostring(Config.Type);
+			Config.Callback(Value);
+		end)
 
 		do
 			SliderBar.InputBegan:Connect(function(Input)
@@ -4701,12 +4932,14 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		Args.Root = Slider;
 
 		function Args:SetValue(Value)
+			Value = NormalizeValue(Value);
+			if Value == nil then return; end;
 			Config.Default = Value;
 
 			ValueText.Text = tostring(Config.Default)..tostring(Config.Type)
 
 			Compkiller:_Animation(SliderInput, TweenInfo.new(0.35),{
-				Size = UDim2.new((Config.Default - Config.Min) / (Config.Max - Config.Min), 0, 1, 0)
+				Size = UDim2.new(ValueScale(Config.Default), 0, 1, 0)
 			});
 
 			Config.Callback(Value);
@@ -4730,7 +4963,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		Args.Signal = Signal:Connect(function(bool)
 			if bool then
 				Compkiller:_Animation(SliderInput, TweenInfo.new(0.35),{
-					Size = UDim2.new((Config.Default - Config.Min) / (Config.Max - Config.Min), 0, 1, 0)
+					Size = UDim2.new(ValueScale(Config.Default), 0, 1, 0)
 				});
 
 				Compkiller:_Animation(ValueText,Tween,{
@@ -4845,6 +5078,7 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		BlockText.TextTransparency = 0.300
 		BlockText.TextXAlignment = Enum.TextXAlignment.Left
 		BlockText.RichText = true
+		BlockText.TextWrapped = true
 		
 		table.insert(Compkiller.Elements.SwitchColor , {
 			Element = BlockText,
@@ -4883,33 +5117,35 @@ function Compkiller:_LoadElement(Parent: Frame , EnabledLine: boolean , Signal)
 		DescriptionText.TextTransparency = 0.500
 		DescriptionText.TextXAlignment = Enum.TextXAlignment.Left
 		DescriptionText.TextYAlignment = Enum.TextYAlignment.Top
+		DescriptionText.TextWrapped = true
 		
 		table.insert(Compkiller.Elements.SwitchColor , {
 			Element = DescriptionText,
 			Property = 'TextColor3'
 		});
 		
-		local Base = 15;
-
 		local UpdateScale = function()
-
-			if not DescriptionText.Text:byte() then
-				local TitleScale = TextService:GetTextSize(BlockText.Text,BlockText.TextSize,BlockText.Font,Vector2.new(math.huge,math.huge));
-
-				Compkiller:_Animation(Paragraph,TweenInfo.new(0.15),{
-					Size = UDim2.new(1, -1, 0, TitleScale.Y + Base)
-				});
-			else
-				local TitleScale = TextService:GetTextSize(BlockText.Text,BlockText.TextSize,BlockText.Font,Vector2.new(math.huge,math.huge));
-				local ContentScale = TextService:GetTextSize(DescriptionText.Text,DescriptionText.TextSize,DescriptionText.Font,Vector2.new(math.huge,math.huge));
-
-				Compkiller:_Animation(Paragraph,TweenInfo.new(0.15),{
-					Size = UDim2.new(1, -1, 0, (TitleScale.Y + ContentScale.Y) + Base)
-				});
-			end;
+			local width = math.max(80, Paragraph.AbsoluteSize.X - 24)
+			local titleHeight = TextService:GetTextSize(BlockText.Text, BlockText.TextSize, BlockText.Font, Vector2.new(width, math.huge)).Y
+			local hasContent = DescriptionText.Text ~= ""
+			local contentHeight = hasContent and TextService:GetTextSize(DescriptionText.Text, DescriptionText.TextSize, DescriptionText.Font, Vector2.new(width, math.huge)).Y or 0
+			BlockText.AnchorPoint = Vector2.zero
+			BlockText.Position = UDim2.fromOffset(12, 4)
+			BlockText.Size = UDim2.new(1, -24, 0, titleHeight)
+			DescriptionText.Position = UDim2.fromOffset(12, 6 + titleHeight)
+			DescriptionText.Size = UDim2.new(1, -24, 0, contentHeight)
+			DescriptionText.Visible = hasContent
+			Paragraph.Size = UDim2.new(1, -1, 0, 12 + titleHeight + contentHeight)
 		end;
 
 		UpdateScale();
+		local measuredWidth = Paragraph.AbsoluteSize.X
+		Paragraph:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			if Paragraph.AbsoluteSize.X ~= measuredWidth then
+				measuredWidth = Paragraph.AbsoluteSize.X
+				UpdateScale()
+			end
+		end)
 
 		local Args = {};
 
@@ -5551,85 +5787,20 @@ function Compkiller:GetTheme()
 	return Compkiller.Colors;
 end;
 
-function Compkiller:SetTheme(name)
-	if name == "Dark Green" then
-		Compkiller.Colors = {
-			["BGDBColor"] = Color3.new(0.0429964, 0.110345, 0.0727226),
-			["BlockBackground"] = Color3.new(0.159287, 0.234483, 0.201811),
-			["BlockColor"] = Color3.new(0, 0.137931, 0.0951249),
-			["DropColor"] = Color3.new(0, 0.227586, 0.100452),
-			["Highlight"] = Color3.new(0.0666667, 0.992157, 0.628343),
-			["LineColor"] = Color3.new(0.263258, 0.372414, 0.329504),
-			["MouseEnter"] = Color3.new(0, 0.841379, 0.51063),
-			["Risky"] = Color3.new(1, 0.398296, 0.152941),
-			["StrokeColor"] = Color3.new(0.132342, 0.241379, 0.198517),
-			["SwitchColor"] = Color3.new(0.927586, 1, 0.980523),
-			["Toggle"] = Color3.new(0, 0.613793, 0.220119),
-			HighStrokeColor = Color3.new(0, 0.241379, 0.186445),
-		};
-	elseif name == "Default" then
-		Compkiller.Colors = {
-			Highlight = Color3.fromRGB(17, 238, 253),
-			Toggle = Color3.fromRGB(14, 203, 213),
-			Risky = Color3.fromRGB(251, 255, 39),
-			BGDBColor = Color3.fromRGB(22, 24, 29),
-			BlockColor = Color3.fromRGB(28, 29, 34),
-			StrokeColor = Color3.fromRGB(37, 38, 43),
-			SwitchColor = Color3.fromRGB(255, 255, 255),
-			DropColor = Color3.fromRGB(33, 35, 39),
-			MouseEnter = Color3.fromRGB(55, 58, 65),
-			BlockBackground = Color3.fromRGB(39, 40, 47),
-			LineColor = Color3.fromRGB(65, 65, 65),
-			HighStrokeColor = Color3.fromRGB(55, 56, 63),
-		};
-	elseif name == "Dark Blue" then
-		Compkiller.Colors = {
-			["BGDBColor"] = Color3.new(0.0393817, 0.0754204, 0.165517),
-			["BlockBackground"] = Color3.new(0, 0.0618311, 0.172414),
-			["BlockColor"] = Color3.new(0, 0.0172414, 0.103448),
-			["DropColor"] = Color3.new(0, 0.0965518, 0.289655),
-			["HighStrokeColor"] = Color3.new(0, 0.132604, 0.234483),
-			["Highlight"] = Color3.new(0.0666667, 0.781528, 0.992157),
-			["LineColor"] = Color3.new(0, 0.110345, 0.275862),
-			["MouseEnter"] = Color3.new(0, 0.606896, 1),
-			["Risky"] = Color3.new(0.0310345, 0.819572, 1),
-			["StrokeColor"] = Color3.new(0, 0.119857, 0.248276),
-			["SwitchColor"] = Color3.new(1, 1, 1),
-			["Toggle"] = Color3.new(0.054902, 0.463935, 0.835294)
-		}
-	elseif name == "Purple Rose" then
-		Compkiller.Colors = {
-			["BGDBColor"] = Color3.new(0.0459068, 0.030321, 0.117241),
-			["BlockBackground"] = Color3.new(0.156272, 0.119596, 0.324138),
-			["BlockColor"] = Color3.new(0.0948428, 0.0576457, 0.165517),
-			["DropColor"] = Color3.new(0.131034, 0, 0.0813317),
-			["HighStrokeColor"] = Color3.new(0.136259, 0.101237, 0.296552),
-			["Highlight"] = Color3.new(0.992157, 0.0666667, 0.33474),
-			["LineColor"] = Color3.new(0.20872, 0.137408, 0.372414),
-			["MouseEnter"] = Color3.new(0.365517, 0, 0.120999),
-			["Risky"] = Color3.new(1, 0.6086, 0.152941),
-			["StrokeColor"] = Color3.new(0.148499, 0.137836, 0.248276),
-			["SwitchColor"] = Color3.new(1, 1, 1),
-			["Toggle"] = Color3.new(0.835294, 0.054902, 0.248654)
-		}
-	elseif name == "Skeet" then		
-		Compkiller.Colors = {
-			["BGDBColor"] = Color3.new(0.114578, 0.125191, 0.151724),
-			["BlockBackground"] = Color3.new(0.128181, 0.131124, 0.151724),
-			["BlockColor"] = Color3.new(0.0732699, 0.0760008, 0.0896552),
-			["DropColor"] = Color3.new(0.0809037, 0.0861197, 0.0965517),
-			["HighStrokeColor"] = Color3.new(0.119382, 0.1217, 0.137931),
-			["Highlight"] = Color3.new(0, 0.634483, 0.0700119),
-			["LineColor"] = Color3.new(0.151724, 0.151724, 0.151724),
-			["MouseEnter"] = Color3.new(0.134007, 0.141391, 0.158621),
-			["Risky"] = Color3.new(0.984314, 1, 0.152941),
-			["StrokeColor"] = Color3.new(0.0769798, 0.0790924, 0.0896552),
-			["SwitchColor"] = Color3.new(1, 1, 1),
-			["Toggle"] = Color3.new(0, 0.324138, 0.10283)
-		}
+function Compkiller:SetTheme(theme)
+	if theme == "Default" then
+		Compkiller.Colors = table.clone(DefaultColors);
+	elseif type(theme) == "table" then
+		for key, value in pairs(theme) do
+			if Compkiller.Colors[key] ~= nil and typeof(value) == "Color3" then
+				Compkiller.Colors[key] = value;
+			end;
+		end;
+	else
+		return false;
 	end;
-	
-	Compkiller:RefreshCurrentColor()
+	Compkiller:RefreshCurrentColor();
+	return true;
 end;
 
 function Compkiller:RefreshCurrentColor()
@@ -5648,6 +5819,12 @@ function Compkiller:RefreshCurrentColor()
 	for i,v in next , Compkiller.Elements.Risky do
 		if v.Element and v.Property then
 			v.Element[v.Property] = Compkiller.Colors.Risky;
+		end;
+	end;
+
+	for i,v in next , Compkiller.Elements.Danger do
+		if v.Element and v.Property then
+			v.Element[v.Property] = Compkiller.Colors.Danger;
 		end;
 	end;
 	
@@ -8801,176 +8978,6 @@ function Compkiller.new(Config : Window)
 			end;
 		end;
 
-		function WindowArgs:Watermark()
-			local Watermark = Instance.new("Frame")
-			local UICorner = Instance.new("UICorner")
-			local Logo = Instance.new("Frame")
-			local UICorner_2 = Instance.new("UICorner")
-			local Frame = Instance.new("Frame")
-			local CompLogo = Instance.new("ImageLabel")
-			local WaternarkList = Instance.new("Frame")
-			local UIListLayout = Instance.new("UIListLayout")
-
-			Watermark.Name = "Watermark"
-			Watermark.Parent = CompKiller
-			Watermark.AnchorPoint = Vector2.new(1, 0)
-			Watermark.BackgroundColor3 = Compkiller.Colors.BGDBColor
-			
-			table.insert(Compkiller.Elements.BGDBColor,{
-				Element = Watermark,
-				Property = 'BackgroundColor3'
-			});
-			
-			Watermark.BackgroundTransparency = 0.025
-			Watermark.BorderColor3 = Color3.fromRGB(0, 0, 0)
-			Watermark.BorderSizePixel = 0
-			Watermark.Position = UDim2.new(1, -10, 0, 10)
-			Watermark.Size = UDim2.new(0, 45, 0, 23)
-			Watermark.ZIndex = 150
-
-
-			UICorner.CornerRadius = UDim.new(0, 3)
-			UICorner.Parent = Watermark
-
-			Logo.Name = "Logo"
-			Logo.Parent = Watermark
-			Logo.AnchorPoint = Vector2.new(1, 0.5)
-			Logo.BackgroundColor3 = Compkiller.Colors.BGDBColor
-			
-			table.insert(Compkiller.Elements.BGDBColor,{
-				Element = Logo,
-				Property = 'BackgroundColor3'
-			});
-			
-			Logo.BackgroundTransparency = 0.300
-			Logo.BorderColor3 = Color3.fromRGB(0, 0, 0)
-			Logo.BorderSizePixel = 0
-			Logo.Position = UDim2.new(0, 5, 0.5, 0)
-			Logo.Size = UDim2.new(1, 10, 1, 0)
-			Logo.SizeConstraint = Enum.SizeConstraint.RelativeYY
-			Logo.ZIndex = 149
-
-			UICorner_2.CornerRadius = UDim.new(0, 3)
-			UICorner_2.Parent = Logo
-
-			Frame.Parent = Logo
-			Frame.AnchorPoint = Vector2.new(0, 0.5)
-			Frame.BackgroundColor3 = Compkiller.Colors.Highlight
-			Frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
-			Frame.BorderSizePixel = 0
-			Frame.Position = UDim2.new(1, -5, 0.5, 0)
-			Frame.Size = UDim2.new(0, 2, 1, 0)
-			Frame.ZIndex = 151
-
-			table.insert(Compkiller.Elements.Highlight,{
-				Element = Frame,
-				Property = "BackgroundColor3"
-			});
-
-			CompLogo.Name = "CompLogo"
-			CompLogo.Parent = Logo
-			CompLogo.AnchorPoint = Vector2.new(0.5, 0.5)
-			CompLogo.BackgroundTransparency = 1.000
-			CompLogo.BorderColor3 = Color3.fromRGB(0, 0, 0)
-			CompLogo.BorderSizePixel = 0
-			CompLogo.Position = UDim2.new(0.5, -2, 0.5, 0)
-			CompLogo.Size = UDim2.new(0.800000012, 0, 0.800000012, 0)
-			CompLogo.SizeConstraint = Enum.SizeConstraint.RelativeYY
-			CompLogo.ZIndex = 159
-			CompLogo.Image = Config.Logo
-
-			WaternarkList.Name = "WaternarkList"
-			WaternarkList.Parent = Watermark
-			WaternarkList.AnchorPoint = Vector2.new(0.5, 0)
-			WaternarkList.BackgroundTransparency = 1.000
-			WaternarkList.BorderColor3 = Color3.fromRGB(0, 0, 0)
-			WaternarkList.BorderSizePixel = 0
-			WaternarkList.Position = UDim2.new(0.5, 0, 0, 0)
-			WaternarkList.Size = UDim2.new(1, -10, 1, 0)
-			WaternarkList.ZIndex = 155
-			WaternarkList.ClipsDescendants = true
-
-			UIListLayout.Parent = WaternarkList
-			UIListLayout.FillDirection = Enum.FillDirection.Horizontal
-			UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-			UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-			UIListLayout.Padding = UDim.new(0, 3)
-
-			UIListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-				Compkiller:_Animation(Watermark,TweenInfo.new(0.4),{
-					Size = UDim2.new(0, UIListLayout.AbsoluteContentSize.X + 8, 0, 23)
-				});
-			end)
-
-			local Args = {};
-
-			function Args:AddText(Watermark : Watermark)
-				Watermark = Compkiller.__CONFIG(Watermark, {
-					Text = "Watermark",
-					Icon = "info"
-				});
-
-				local Icon = Instance.new("ImageLabel")
-				local TextLabel = Instance.new("TextLabel")
-
-				local ImageIcon : table? = Compkiller:_GetIcon(Watermark.Icon);
-
-				Icon.Name = "Icon"
-				Icon.Parent = WaternarkList
-				Icon.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-				Icon.BackgroundTransparency = 1.000
-				Icon.BorderColor3 = Color3.fromRGB(0, 0, 0)
-				Icon.BorderSizePixel = 0
-				Icon.Size = UDim2.fromOffset(15,15)
-				Icon.SizeConstraint = Enum.SizeConstraint.RelativeYY
-				Icon.ZIndex = 156
-				Icon.ImageRectOffset = ImageIcon.ImageRectPosition
-				Icon.ImageRectSize = ImageIcon.ImageRectSize
-				Icon.Image = ImageIcon.Image
-
-				TextLabel.Parent = WaternarkList
-				TextLabel.BackgroundTransparency = 1.000
-				TextLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
-				TextLabel.BorderSizePixel = 0
-				TextLabel.Size = UDim2.new(0, 50, 0.699999988, 0)
-				TextLabel.ZIndex = 156
-				TextLabel.Font = Enum.Font.GothamMedium
-				TextLabel.Text = Watermark.Text
-				TextLabel.TextColor3 = Compkiller.Colors.SwitchColor
-				TextLabel.TextSize = 10.000
-				TextLabel.TextXAlignment = Enum.TextXAlignment.Left
-				
-				table.insert(Compkiller.Elements.SwitchColor , {
-					Element = TextLabel,
-					Property = 'TextColor3'
-				});
-				
-				local Update = function()
-					local scale = TextService:GetTextSize(TextLabel.Text,TextLabel.TextSize,TextLabel.Font,Vector2.new(math.huge,math.huge));
-
-					TextLabel.Size = UDim2.new(0, scale.X + 2, 0.7, 0)
-				end;
-
-				Update()
-
-				local Arg = {};
-
-				function Arg:SetText(text)
-					TextLabel.Text = text;
-					Update();
-				end;
-
-				function Arg:Visible(v)
-					Icon.Visible = v;
-					TextLabel.Visible = v;
-				end;
-
-				return Arg;
-			end;
-
-			return Args;
-		end;
-
 		function WindowArgs:Toggle(Value: boolean)
 			if Value ~= true then Compkiller:CloseActiveSortable("window"); end;
 			WindowOpen:Fire(Value);
@@ -9259,56 +9266,26 @@ function Compkiller.new(Config : Window)
 	function WindowArgs:DrawUISettings(Tab, Configuration)
 		Configuration = Configuration or {};
 		if type(Tab) ~= "table" or type(Tab.DrawSection) ~= "function" then return nil; end;
-		local Appearance = Tab:DrawSection({ Name = tostring(Configuration.AppearanceName or "UI Appearance"), Position = tostring(Configuration.AppearancePosition or "left") });
-		local Performance = Tab:DrawSection({ Name = tostring(Configuration.PerformanceName or "UI Performance"), Position = tostring(Configuration.PerformancePosition or "right") });
-
-		Appearance:AddDropdown({
-			Name = "Theme",
-			Values = { "Default", "Dark Blue", "Dark Green", "Purple Rose", "Skeet" },
-			Default = "Default",
-			Flag = Configuration.FlagPrefix and (Configuration.FlagPrefix .. "_Theme") or nil,
-			Callback = function(Value) Compkiller:SetTheme(tostring(Value or "Default")) end
+		local Appearance = Tab:DrawSection({ Name = tostring(Configuration.AppearanceName or "Appearance"), Position = "left" });
+		local Animation = Tab:DrawSection({ Name = tostring(Configuration.AnimationName or "Animation"), Position = "right" });
+		Appearance:AddColorPicker({
+			Name = "Accent", Default = Compkiller.Colors.Highlight,
+			Flag = Configuration.FlagPrefix and (Configuration.FlagPrefix .. "_Accent") or nil,
+			Callback = function(value) if typeof(value) == "Color3" then Compkiller:ChangeHighlightColor(value) end end
 		});
-		if type(Appearance.AddColorPicker) == "function" then
-			Appearance:AddColorPicker({
-				Name = "Accent",
-				Default = Compkiller.Colors.Highlight,
-				Flag = Configuration.FlagPrefix and (Configuration.FlagPrefix .. "_Accent") or nil,
-				Callback = function(Value) if typeof(Value) == "Color3" then Compkiller:ChangeHighlightColor(Value) end end
-			});
-		end;
 		Appearance:AddSlider({
-			Name = "UI Scale",
-			Min = 70,
-			Max = 130,
+			Name = "UI Scale", Min = 70, Max = 130,
 			Default = math.floor((MainUIScale.Scale or 1) * 100 + 0.5),
-			Round = 0,
-			Rounding = 0,
-			Type = "%",
+			Round = 0, Type = "%",
 			Flag = Configuration.FlagPrefix and (Configuration.FlagPrefix .. "_Scale") or nil,
-			Callback = function(Value) WindowArgs:SetUIScale((tonumber(Value) or 100) / 100) end
+			Callback = function(value) WindowArgs:SetUIScale((tonumber(value) or 100) / 100) end
 		});
-
-		Performance:AddDropdown({
-			Name = "Motion",
-			Values = { "Full", "Reduced", "Off" },
-			Default = Compkiller.UISettings.Motion,
+		Animation:AddToggle({
+			Name = "Motion", Default = Compkiller.UISettings.Motion ~= "Off",
 			Flag = Configuration.FlagPrefix and (Configuration.FlagPrefix .. "_Motion") or nil,
-			Callback = function(Value) Compkiller:SetMotionMode(Value) end
+			Callback = function(value) Compkiller:SetMotionMode(value and "On" or "Off") end
 		});
-		Performance:AddToggle({
-			Name = "Performance Mode",
-			Default = false,
-			Flag = Configuration.FlagPrefix and (Configuration.FlagPrefix .. "_Performance") or nil,
-			Callback = function(Value)
-				if Value == true then
-					Compkiller:SetMotionMode("Reduced");
-				else
-					Compkiller:SetMotionMode("Full");
-				end;
-			end
-		});
-		return { Appearance = Appearance, Performance = Performance };
+		return { Appearance = Appearance, Animation = Animation };
 	end;
 
 	return WindowArgs;
@@ -9379,6 +9356,8 @@ function Compkiller:_Path(...)
 end;
 
 function Compkiller:ConfigManager(ConfigManager: ConfigManager) : ConfigFunctions
+	local reason = self:UnavailableReason({ "isfolder", "makefolder", "isfile", "readfile", "writefile", "listfiles", "delfile" });
+	if reason then return nil, reason end;
 	ConfigManager = Compkiller.__CONFIG(ConfigManager , {
 		Directory = "Compkiller",
 		Config = "Software"
@@ -9827,7 +9806,7 @@ function Compkiller:Loader(IconId,Duration)
 	Icon.Position = UDim2.new(0.5, 0, 0.5, 0)
 	Icon.Size = UDim2.new(0, 750, 0, 750)
 	Icon.ZIndex = 100
-	Icon.Image = IconId or "rbxassetid://120245531583106"
+	Icon.Image = IconId or Compkiller.Logo
 	Icon.ImageTransparency = 1
 
 	Vignette.Name = "Vignette"
@@ -10197,10 +10176,6 @@ local function __SortableGetAttachFrame(AttachedTo)
         return AttachedTo;
     end;
 
-    if Compkiller.LastWindow and Compkiller.LastWindow.__MainFrame then
-        return Compkiller.LastWindow.__MainFrame;
-    end;
-
     return nil;
 end;
 
@@ -10225,9 +10200,11 @@ function Compkiller:CreateSortableList(Config: SortableListConfig)
     local OnChanged = Config.OnChanged or function() end;
     local OnDone = Config.OnDone or function() end;
     local OnClick = Config.OnClick or function() end;
-    local CurrentModal = nil;
-    local Trigger = nil;
-    local API = {};
+	local CurrentModal = nil;
+	local Trigger = nil;
+	local API = {};
+	local SectionFrame = type(Config.Section) == "table" and Config.Section.__MainFrame or nil;
+	local OwnerScreen = typeof(SectionFrame) == "Instance" and Compkiller:_GetWindowFromElement(SectionFrame) or nil;
 
     local function CopyOrder()
         return __SortableCopyItems(Items);
@@ -10317,7 +10294,7 @@ function Compkiller:CreateSortableList(Config: SortableListConfig)
             Size = Config.Size,
             Mode = Config.Mode,
             AttachedTo = Config.AttachedTo,
-            Window = Config.Window,
+			Window = Config.Window or (OwnerScreen and { ScreenGui = OwnerScreen } or nil),
             OnClick = function(Item, Index)
                 OnClick(Item, Index);
             end,
@@ -10419,8 +10396,8 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
         Compkiller:CloseActiveSortable("replace");
     end;
 
-    local WindowScreen = type(Config.Window) == "table" and Config.Window.ScreenGui or nil;
-    local ExternalParent = (typeof(WindowScreen) == "Instance" and WindowScreen.Parent and WindowScreen) or PlayerGui;
+	local WindowScreen = type(Config.Window) == "table" and Config.Window.ScreenGui or nil;
+	local ExternalParent = (typeof(WindowScreen) == "Instance" and WindowScreen.Parent and WindowScreen) or PlayerGui;
     local ExistingParent = AttachFrame or ExternalParent;
     local SortableRootName = IsInternal and "CompkillerSortableInternal" or "CompkillerSortableModal";
     local Existing = ExistingParent:FindFirstChild(SortableRootName);
@@ -10859,6 +10836,7 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
         Name.TextColor3 = Compkiller.Colors.SwitchColor;
         Name.TextSize = 12;
         Name.TextXAlignment = Enum.TextXAlignment.Left;
+        Name.TextTruncate = Enum.TextTruncate.AtEnd;
         Name.ZIndex = 905;
 
         Description.Name = "Description";
@@ -10871,6 +10849,7 @@ function Compkiller:OpenSortableList(Config: SortableListConfig)
         Description.TextTransparency = 0.66;
         Description.TextSize = 10;
         Description.TextXAlignment = Enum.TextXAlignment.Left;
+        Description.TextTruncate = Enum.TextTruncate.AtEnd;
         Description.ZIndex = 905;
 
         Button.Name = "Input";
@@ -11157,5 +11136,12 @@ function Compkiller:OpenSortableList(Config)
 	end);
 end;
 
+
+if getgenv().CompkillerAutoLoader ~= false then
+	task.defer(function()
+		local ok, err = pcall(function() Compkiller:Loader(Compkiller.Logo, 1.2) end);
+		if not ok then warn("[Compkiller] Loader failed: " .. tostring(err)) end;
+	end);
+end;
 
 return Compkiller;
