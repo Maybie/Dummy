@@ -3034,7 +3034,6 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 	ToggleUI(false)
 
 	local SpamUpdate,_Delay = false , tick();
-	local __signals = {};
 	local __connections = {};
 	local Default = nil;
 	local Values = nil;
@@ -3105,10 +3104,6 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 				Child:Destroy();
 			end;
 		end;
-		for _, Connection in next, __signals do
-			Connection:Disconnect();
-		end;
-		__signals = {};
 		ButtonsByValue = {};
 		SelectedButton = nil;
 	end;
@@ -3134,12 +3129,8 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 
 	local function ApplyButtonStyle(ButtonData, Selected, Visible)
 		if not ButtonData then return; end;
-		Compkiller:_Animation(ButtonData.BlockText, TweenInfo.new(0.2), {
-			TextTransparency = Visible and (Selected and 0 or 0.5) or 1
-		});
-		Compkiller:_Animation(ButtonData.BlockLine, TweenInfo.new(0.2), {
-			BackgroundTransparency = Visible and 0 or 1
-		});
+		ButtonData.BlockText.TextTransparency = Visible and (Selected and 0 or 0.5) or 1;
+		ButtonData.BlockLine.BackgroundTransparency = Visible and 0 or 1;
 	end;
 
 	local function RefreshSelectionStyles()
@@ -3148,6 +3139,7 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 			ApplyButtonStyle(ButtonData, IsSelected(Value), Visible);
 		end;
 	end;
+	ToggleDb:Connect(RefreshSelectionStyles);
 
 	local UpdateDropdown = function()
 		SyncCurrentMultiFromDefault();
@@ -3158,10 +3150,6 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 			ButtonData.Value = Value;
 			ButtonsByValue[Value] = ButtonData;
 			if not IsMulti and Default == Value then SelectedButton = ButtonData; end;
-
-			table.insert(__signals, ToggleDb:Connect(function()
-				RefreshSelectionStyles();
-			end));
 
 			if IsMulti then
 				Compkiller:_Input(ButtonData.DropdownItem, function()
@@ -3269,6 +3257,8 @@ function Compkiller:_LoadDropdown(BaseParent: TextButton , Callback: () -> any)
 			pcall(function() Connection:Disconnect(); end);
 		end;
 		__connections = {};
+		ToggleDb:Destroy();
+		EventOut:Destroy();
 		pcall(function() DropdownWindow:Destroy(); end);
 	end;
 
